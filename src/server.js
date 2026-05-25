@@ -1,6 +1,4 @@
-import dotenv from "dotenv";
-dotenv.config();
-console.log("API KEY cargada:", process.env.ANTHROPIC_API_KEY ? "SÍ ✅" : "NO ❌");
+
 import express from "express";
 import cors from "cors";
 import { v4 as uuidv4 } from "uuid";
