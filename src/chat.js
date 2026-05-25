@@ -3,7 +3,7 @@ import { db } from "./db.js";
 import { buildSystemPrompt } from "./prompt.js";
 import { getCliente } from "./clientes.js";
 
-
+const MOCK_MODE = !process.env.ANTHROPIC_API_KEY;
 
 if (MOCK_MODE) {
   console.log("⚠️  Modo simulado activo — sin API key. Las respuestas son ficticias.");
