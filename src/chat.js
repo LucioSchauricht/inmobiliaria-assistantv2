@@ -61,7 +61,7 @@ export async function chatHandler(req, res) {
 
   // Cargar configuración del cliente por token
   const clienteToken = token || "DEMO-TOKEN-001";
-  const cliente = getCliente(clienteToken);
+  const cliente = await getCliente(clienteToken);
 
   if (!cliente) {
     return res.status(404).json({ error: `Token de cliente no encontrado: ${clienteToken}` });

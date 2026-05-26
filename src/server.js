@@ -8,6 +8,7 @@ import { dirname, join } from "path";
 import { chatHandler } from "./chat.js";
 import { leadsRouter } from "./leads.js";
 import { getCliente } from "./clientes.js";
+import { adminRouter } from "./admin.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -57,14 +58,17 @@ app.get("/dashboard", (req, res) => {
   res.sendFile(join(__dirname, "dashboard.html"));
 });
 
-// Info de cliente por token (para el dashboard)
-app.get("/cliente", (req, res) => {
+// Info de cliente por token (para el dashboard de leads)
+app.get("/cliente", async (req, res) => {
   const { token } = req.query;
   if (!token) return res.status(400).json({ error: "token requerido" });
-  const cliente = getCliente(token);
+  const cliente = await getCliente(token);
   if (!cliente) return res.status(404).json({ error: "token inválido" });
   res.json({ nombre: cliente.nombre, ciudad: cliente.ciudad });
 });
+
+// Admin
+app.use("/admin", adminRouter);
 
 // Chat
 app.post("/chat", chatHandler);

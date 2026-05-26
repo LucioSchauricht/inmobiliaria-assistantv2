@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin — Asistente IA Inmobiliaria</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f1f5f9;
+      color: #1e293b;
+      min-height: 100vh;
+    }
+
+    /* ── Login ── */
+    #login-screen {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 24px;
+    }
+    .login-card {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 4px 24px rgba(0,0,0,.08);
+      padding: 48px 40px;
+      width: 100%;
+      max-width: 400px;
+      text-align: center;
+    }
+    .login-card .logo { font-size: 2.5rem; margin-bottom: 8px; }
+    .login-card h1 { font-size: 1.4rem; font-weight: 700; margin-bottom: 6px; }
+    .login-card p { color: #64748b; font-size: .9rem; margin-bottom: 28px; }
+
+    .field-wrap { text-align: left; margin-bottom: 14px; }
+    .field-wrap label { display: block; font-size: .83rem; font-weight: 600; color: #475569; margin-bottom: 6px; }
+
+    input[type="password"], input[type="text"] {
+      width: 100%;
+      padding: 11px 14px;
+      border: 2px solid #e2e8f0;
+      border-radius: 9px;
+      font-size: .95rem;
+      outline: none;
+      transition: border-color .2s;
+    }
+    input:focus { border-color: #2563eb; }
+
+    .btn-primary {
+      width: 100%;
+      padding: 12px;
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      border-radius: 9px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .2s;
+      margin-top: 4px;
+    }
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-primary:disabled { background: #93c5fd; cursor: not-allowed; }
+
+    .error-msg { color: #dc2626; font-size: .85rem; margin-top: 10px; display: none; }
+
+    /* ── Admin screen ── */
+    #admin-screen { display: none; }
+
+    .topbar {
+      background: #fff;
+      border-bottom: 1px solid #e2e8f0;
+      padding: 0 32px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .topbar-left { display: flex; align-items: center; gap: 10px; }
+    .topbar-left .icon { font-size: 1.5rem; }
+    .topbar-left .brand { font-weight: 700; font-size: 1.1rem; }
+    .badge-admin {
+      background: #fef3c7;
+      color: #92400e;
+      border: 1px solid #fde68a;
+      border-radius: 20px;
+      padding: 3px 12px;
+      font-size: .75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+    }
+    .btn-logout {
+      background: none;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 7px 16px;
+      font-size: .85rem;
+      color: #64748b;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .btn-logout:hover { background: #f1f5f9; color: #1e293b; }
+
+    .main { padding: 32px; max-width: 1200px; margin: 0 auto; }
+    .page-title { font-size: 1.5rem; font-weight: 700; margin-bottom: 4px; }
+    .page-subtitle { color: #64748b; font-size: .9rem; margin-bottom: 28px; }
+
+    /* Stats */
+    .stats-row { display: flex; gap: 16px; margin-bottom: 28px; flex-wrap: wrap; }
+    .stat-card {
+      background: #fff;
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+      padding: 20px 24px;
+      flex: 1;
+      min-width: 150px;
+    }
+    .stat-card .s-label { font-size: .78rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
+    .stat-card .s-value { font-size: 2rem; font-weight: 800; color: #2563eb; }
+
+    /* Table */
+    .table-card { background: #fff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; }
+    .table-header {
+      padding: 18px 24px;
+      border-bottom: 1px solid #e2e8f0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .table-header h2 { font-size: 1rem; font-weight: 700; }
+
+    .btn-add {
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 18px;
+      font-size: .88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .2s;
+    }
+    .btn-add:hover { background: #1d4ed8; }
+
+    table { width: 100%; border-collapse: collapse; }
+    thead th {
+      padding: 11px 16px;
+      text-align: left;
+      font-size: .76rem;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      background: #f8fafc;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    tbody tr { border-bottom: 1px solid #f1f5f9; transition: background .1s; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: #f8fafc; }
+    tbody td { padding: 14px 16px; font-size: .9rem; vertical-align: middle; }
+
+    .token-cell { display: flex; align-items: center; gap: 8px; }
+    .token-text { font-family: monospace; font-size: .82rem; color: #475569; }
+    .btn-copy {
+      background: none;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 3px 9px;
+      font-size: .75rem;
+      color: #64748b;
+      cursor: pointer;
+      transition: all .15s;
+      white-space: nowrap;
+    }
+    .btn-copy:hover { background: #f1f5f9; }
+    .btn-copy.copied { border-color: #86efac; color: #16a34a; background: #f0fdf4; }
+
+    .lead-badge {
+      display: inline-block;
+      background: #eff6ff;
+      color: #2563eb;
+      border-radius: 20px;
+      padding: 2px 12px;
+      font-size: .8rem;
+      font-weight: 700;
+    }
+
+    .del-wrap { display: flex; align-items: center; gap: 6px; }
+    .btn-del {
+      background: none;
+      border: 1px solid #fca5a5;
+      border-radius: 7px;
+      padding: 5px 12px;
+      font-size: .82rem;
+      color: #dc2626;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .btn-del:hover { background: #fef2f2; }
+    .confirm-wrap { display: none; align-items: center; gap: 6px; }
+    .confirm-wrap span { font-size: .82rem; color: #64748b; }
+    .btn-yes {
+      background: #dc2626;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: .8rem;
+      cursor: pointer;
+    }
+    .btn-no {
+      background: none;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: .8rem;
+      cursor: pointer;
+    }
+
+    .empty-state { text-align: center; padding: 60px 24px; color: #94a3b8; }
+    .empty-state .icon { font-size: 2.5rem; margin-bottom: 12px; }
+
+    /* ── Modal ── */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15,23,42,.45);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 24px;
+    }
+    .modal-card {
+      background: #fff;
+      border-radius: 16px;
+      width: 100%;
+      max-width: 560px;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 32px;
+    }
+    .modal-card h2 { font-size: 1.2rem; font-weight: 700; margin-bottom: 22px; }
+
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+    .f-field { display: flex; flex-direction: column; gap: 5px; }
+    .f-field label { font-size: .82rem; font-weight: 600; color: #475569; }
+    .f-field input { margin: 0; }
+
+    .section-label { font-size: .82rem; font-weight: 600; color: #475569; margin-bottom: 8px; margin-top: 6px; }
+
+    .props-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
+    .prop-row { display: flex; gap: 8px; align-items: center; }
+    .prop-row input { flex: 1; margin: 0; }
+    .btn-rm {
+      flex-shrink: 0;
+      width: 32px;
+      height: 36px;
+      background: none;
+      border: 1px solid #fca5a5;
+      border-radius: 7px;
+      color: #dc2626;
+      font-size: 1.1rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .btn-add-prop {
+      width: 100%;
+      padding: 9px;
+      background: none;
+      border: 1px dashed #cbd5e1;
+      border-radius: 8px;
+      font-size: .85rem;
+      color: #64748b;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .btn-add-prop:hover { border-color: #2563eb; color: #2563eb; background: #eff6ff; }
+
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
+    .btn-cancel {
+      background: none;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 9px 20px;
+      font-size: .9rem;
+      cursor: pointer;
+    }
+    .btn-cancel:hover { background: #f8fafc; }
+    .btn-submit {
+      padding: 9px 24px;
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      border-radius: 9px;
+      font-size: .95rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-submit:hover { background: #1d4ed8; }
+    .btn-submit:disabled { background: #93c5fd; cursor: not-allowed; }
+    .form-error { color: #dc2626; font-size: .85rem; text-align: center; margin-top: 10px; display: none; }
+
+    /* Success view */
+    .success-view { text-align: center; }
+    .success-view .check { font-size: 3rem; margin-bottom: 12px; }
+    .success-view h3 { font-size: 1.2rem; font-weight: 700; margin-bottom: 8px; }
+    .success-view p { color: #64748b; font-size: .9rem; margin-bottom: 24px; }
+    .token-box {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin-bottom: 14px;
+      text-align: left;
+    }
+    .token-box .t-label { font-size: .73rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
+    .token-box .t-value { font-family: monospace; font-size: 1.15rem; font-weight: 700; color: #1e293b; word-break: break-all; }
+    .btn-copy-big {
+      width: 100%;
+      padding: 10px;
+      background: none;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: .9rem;
+      color: #475569;
+      cursor: pointer;
+      margin-bottom: 10px;
+      transition: all .15s;
+    }
+    .btn-copy-big:hover { background: #f1f5f9; }
+
+    @media (max-width: 640px) {
+      .topbar { padding: 0 16px; }
+      .main { padding: 20px 16px; }
+      .form-grid { grid-template-columns: 1fr; }
+      thead th:nth-child(3), tbody td:nth-child(3),
+      thead th:nth-child(5), tbody td:nth-child(5) { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── LOGIN ── -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="logo">🔐</div>
+    <h1>Panel de Administración</h1>
+    <p>Ingresá la contraseña para acceder.</p>
+    <div class="field-wrap">
+      <label for="pass-input">Contraseña</label>
+      <input type="password" id="pass-input" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="btn-primary" id="login-btn" onclick="login()">Ingresar</button>
+    <div class="error-msg" id="login-error">Contraseña incorrecta.</div>
+  </div>
+</div>
+
+<!-- ── DASHBOARD ── -->
+<div id="admin-screen">
+  <div class="topbar">
+    <div class="topbar-left">
+      <span class="icon">🏠</span>
+      <span class="brand">Asistente IA</span>
+      <span class="badge-admin">Admin</span>
+    </div>
+    <button class="btn-logout" onclick="logout()">Cerrar sesión</button>
+  </div>
+
+  <div class="main">
+    <div class="page-title">Gestión de clientes</div>
+    <div class="page-subtitle">Clientes activos con su widget de chat configurado.</div>
+
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="s-label">Clientes activos</div>
+        <div class="s-value" id="stat-clientes">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="s-label">Total leads</div>
+        <div class="s-value" id="stat-leads">—</div>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <div class="table-header">
+        <h2>Clientes registrados</h2>
+        <button class="btn-add" onclick="openModal()">＋ Agregar cliente</button>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>Ciudad</th>
+            <th>Token</th>
+            <th>Leads</th>
+            <th>Alta</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+      <div class="empty-state" id="empty-state" style="display:none">
+        <div class="icon">🏢</div>
+        <p>No hay clientes registrados todavía.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL ── -->
+<div id="modal" class="modal-backdrop" style="display:none" onclick="handleBackdrop(event)">
+  <div class="modal-card">
+
+    <!-- Form view -->
+    <div id="form-view">
+      <h2>Nuevo cliente</h2>
+      <div class="form-grid">
+        <div class="f-field">
+          <label>Nombre de la inmobiliaria *</label>
+          <input type="text" id="f-nombre" placeholder="Inmobiliaria XYZ">
+        </div>
+        <div class="f-field">
+          <label>Ciudad *</label>
+          <input type="text" id="f-ciudad" placeholder="Montevideo">
+        </div>
+        <div class="f-field">
+          <label>Teléfono *</label>
+          <input type="text" id="f-tel" placeholder="2900-0000">
+        </div>
+        <div class="f-field">
+          <label>Horario de atención *</label>
+          <input type="text" id="f-horario" placeholder="Lunes a viernes 9:00–18:00">
+        </div>
+      </div>
+      <div class="section-label">Propiedades disponibles</div>
+      <div class="props-list" id="props-list"></div>
+      <button class="btn-add-prop" onclick="addProp()">+ Agregar propiedad</button>
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
+        <button class="btn-submit" id="submit-btn" onclick="submitCliente()">Crear cliente</button>
+      </div>
+      <div class="form-error" id="form-error"></div>
+    </div>
+
+    <!-- Success view -->
+    <div id="success-view" style="display:none" class="success-view">
+      <div class="check">✅</div>
+      <h3>¡Cliente creado!</h3>
+      <p>Guardá este token. Es el que el cliente usa para su dashboard y para incrustar el widget.</p>
+      <div class="token-box">
+        <div class="t-label">Token generado</div>
+        <div class="t-value" id="new-token">—</div>
+      </div>
+      <button class="btn-copy-big" id="copy-btn" onclick="copyNewToken(this)">📋 Copiar token</button>
+      <button class="btn-primary" onclick="closeModal()">Listo</button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  let clientes = [];
+
+  // ── Auth ──────────────────────────────────────────────────
+  async function init() {
+    const res = await fetch("/admin/api/check");
+    if (res.ok) { showDashboard(); loadClientes(); }
+    else showLogin();
+  }
+
+  function showLogin() {
+    document.getElementById("login-screen").style.display = "flex";
+    document.getElementById("admin-screen").style.display = "none";
+  }
+
+  function showDashboard() {
+    document.getElementById("login-screen").style.display = "none";
+    document.getElementById("admin-screen").style.display = "block";
+  }
+
+  async function login() {
+    const pass = document.getElementById("pass-input").value;
+    const btn  = document.getElementById("login-btn");
+    const err  = document.getElementById("login-error");
+    err.style.display = "none";
+    btn.disabled = true;
+    btn.textContent = "Verificando...";
+    try {
+      const res = await fetch("/admin/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: pass }),
+      });
+      if (res.ok) { showDashboard(); loadClientes(); }
+      else err.style.display = "block";
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Ingresar";
+    }
+  }
+
+  async function logout() {
+    await fetch("/admin/api/logout", { method: "POST" });
+    document.getElementById("pass-input").value = "";
+    showLogin();
+  }
+
+  // ── Clientes ──────────────────────────────────────────────
+  async function loadClientes() {
+    const res = await fetch("/admin/api/clientes");
+    if (!res.ok) return;
+    clientes = await res.json();
+    renderTable();
+  }
+
+  function renderTable() {
+    const tbody    = document.getElementById("tbody");
+    const emptyEl  = document.getElementById("empty-state");
+    const totalLeads = clientes.reduce((s, c) => s + c.lead_count, 0);
+
+    document.getElementById("stat-clientes").textContent = clientes.length;
+    document.getElementById("stat-leads").textContent    = totalLeads;
+
+    tbody.innerHTML = "";
+
+    if (clientes.length === 0) { emptyEl.style.display = "block"; return; }
+    emptyEl.style.display = "none";
+
+    clientes.forEach((c) => {
+      const tr = document.createElement("tr");
+      tr.id = "row-" + c.token;
+      tr.innerHTML = `
+        <td><strong>${esc(c.nombre)}</strong></td>
+        <td>${esc(c.ciudad)}</td>
+        <td>
+          <div class="token-cell">
+            <span class="token-text">${esc(c.token)}</span>
+            <button class="btn-copy" onclick="copyToken('${esc(c.token)}', this)">Copiar</button>
+          </div>
+        </td>
+        <td><span class="lead-badge">${c.lead_count}</span></td>
+        <td style="color:#64748b;font-size:.85rem">${fmtDate(c.created_at)}</td>
+        <td>
+          <div class="del-wrap">
+            <button class="btn-del" onclick="askDelete(this, '${esc(c.token)}')">Eliminar</button>
+            <div class="confirm-wrap" id="confirm-${esc(c.token)}">
+              <span>¿Eliminar?</span>
+              <button class="btn-yes" onclick="confirmDelete('${esc(c.token)}')">Sí</button>
+              <button class="btn-no"  onclick="cancelDelete('${esc(c.token)}', this)">No</button>
+            </div>
+          </div>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function askDelete(btn, token) {
+    btn.style.display = "none";
+    document.getElementById("confirm-" + token).style.display = "flex";
+  }
+
+  function cancelDelete(token, noBtn) {
+    document.getElementById("confirm-" + token).style.display = "none";
+    noBtn.closest(".del-wrap").querySelector(".btn-del").style.display = "inline-block";
+  }
+
+  async function confirmDelete(token) {
+    const res = await fetch("/admin/api/clientes/" + encodeURIComponent(token), { method: "DELETE" });
+    if (!res.ok) return;
+    document.getElementById("row-" + token)?.remove();
+    clientes = clientes.filter((c) => c.token !== token);
+    document.getElementById("stat-clientes").textContent = clientes.length;
+    document.getElementById("stat-leads").textContent = clientes.reduce((s, c) => s + c.lead_count, 0);
+    if (clientes.length === 0) document.getElementById("empty-state").style.display = "block";
+  }
+
+  // ── Modal ─────────────────────────────────────────────────
+  function openModal() {
+    document.getElementById("modal").style.display = "flex";
+    document.getElementById("form-view").style.display = "block";
+    document.getElementById("success-view").style.display = "none";
+    document.getElementById("form-error").style.display = "none";
+    ["f-nombre","f-ciudad","f-tel","f-horario"].forEach(id => document.getElementById(id).value = "");
+    document.getElementById("props-list").innerHTML = "";
+    addProp();
+  }
+
+  function closeModal() {
+    document.getElementById("modal").style.display = "none";
+    loadClientes();
+  }
+
+  function handleBackdrop(e) {
+    if (e.target === document.getElementById("modal")) closeModal();
+  }
+
+  function addProp() {
+    const list = document.getElementById("props-list");
+    const row  = document.createElement("div");
+    row.className = "prop-row";
+    row.innerHTML = `
+      <input type="text" placeholder="Ej: Apartamento 2 dorm., Pocitos, $1.800/mes alquiler">
+      <button class="btn-rm" onclick="this.parentElement.remove()">×</button>
+    `;
+    list.appendChild(row);
+    row.querySelector("input").focus();
+  }
+
+  async function submitCliente() {
+    const nombre     = document.getElementById("f-nombre").value.trim();
+    const ciudad     = document.getElementById("f-ciudad").value.trim();
+    const telefono   = document.getElementById("f-tel").value.trim();
+    const horario    = document.getElementById("f-horario").value.trim();
+    const propiedades = Array.from(document.querySelectorAll("#props-list input"))
+      .map(el => el.value.trim()).filter(Boolean);
+
+    const errEl = document.getElementById("form-error");
+    errEl.style.display = "none";
+
+    if (!nombre || !ciudad || !telefono || !horario) {
+      errEl.textContent = "Completá todos los campos obligatorios.";
+      errEl.style.display = "block";
+      return;
+    }
+
+    const btn = document.getElementById("submit-btn");
+    btn.disabled = true;
+    btn.textContent = "Creando...";
+
+    try {
+      const res  = await fetch("/admin/api/clientes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nombre, ciudad, telefono, horario, propiedades }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        errEl.textContent = data.error || "Error al crear el cliente.";
+        errEl.style.display = "block";
+        return;
+      }
+      document.getElementById("new-token").textContent = data.token;
+      document.getElementById("form-view").style.display    = "none";
+      document.getElementById("success-view").style.display = "block";
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Crear cliente";
+    }
+  }
+
+  // ── Clipboard ─────────────────────────────────────────────
+  function copyToken(token, btn) {
+    navigator.clipboard.writeText(token).then(() => {
+      btn.textContent = "✓ Copiado";
+      btn.classList.add("copied");
+      setTimeout(() => { btn.textContent = "Copiar"; btn.classList.remove("copied"); }, 2000);
+    });
+  }
+
+  function copyNewToken(btn) {
+    const token = document.getElementById("new-token").textContent;
+    navigator.clipboard.writeText(token).then(() => {
+      btn.textContent = "✓ Copiado";
+      setTimeout(() => { btn.textContent = "📋 Copiar token"; }, 2000);
+    });
+  }
+
+  // ── Helpers ───────────────────────────────────────────────
+  function fmtDate(iso) {
+    return new Date(iso).toLocaleDateString("es-UY", { day: "2-digit", month: "2-digit", year: "numeric" });
+  }
+
+  function esc(str) {
+    return String(str)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
+
+  document.getElementById("pass-input").addEventListener("keydown", e => {
+    if (e.key === "Enter") login();
+  });
+
+  init();
+</script>
+</body>
+</html>
