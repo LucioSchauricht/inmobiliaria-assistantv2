@@ -12,7 +12,7 @@ export const db = {
     if (!sessions.has(sessionId)) {
       sessions.set(sessionId, {
         messages: [],
-        leadData: { nombre: null, telefono: null, email: null, horario: null },
+        leadData: { nombre: null, telefono: null, email: null, horario: null, resumen: null },
         createdAt: new Date(),
       });
     }
@@ -32,7 +32,7 @@ export const db = {
     const session = this.getSession(sessionId);
     session.leadData = { ...session.leadData, ...data };
 
-    const { nombre, telefono, email, horario } = session.leadData;
+    const { nombre, telefono, email, horario, resumen } = session.leadData;
     if (!nombre || !telefono) return;
 
     const { error } = await supabase.from("leads").upsert(
@@ -43,6 +43,7 @@ export const db = {
         telefono,
         email: email || null,
         horario: horario || null,
+        resumen: resumen || null,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "session_id" }
@@ -78,6 +79,7 @@ export const db = {
       telefono: row.telefono,
       email: row.email,
       horario: row.horario,
+      resumen: row.resumen,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     }));

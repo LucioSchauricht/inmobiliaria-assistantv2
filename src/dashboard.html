@@ -201,6 +201,7 @@
 
     .td-num { color: #A1A1AA; font-size: .8rem; font-variant-numeric: tabular-nums; }
     .td-nombre { font-weight: 500; }
+    .td-resumen { font-size: .775rem; color: #A1A1AA; font-weight: 400; margin-top: 3px; line-height: 1.4; }
     .badge-new {
       display: inline-block;
       background: #F4F4F5;
@@ -415,8 +416,11 @@
       tr.innerHTML = `
         <td class="td-num">${leads.length - i}</td>
         <td class="td-nombre">
-          ${escHtml(lead.nombre || "—")}
-          ${isNew ? '<span class="badge-new">Nuevo</span>' : ""}
+          <div>
+            ${escHtml(lead.nombre || "—")}
+            ${isNew ? '<span class="badge-new">Nuevo</span>' : ""}
+          </div>
+          ${lead.resumen ? `<div class="td-resumen">${escHtml(lead.resumen)}</div>` : ""}
         </td>
         <td>${escHtml(lead.telefono || "—")}</td>
         <td>

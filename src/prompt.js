@@ -35,9 +35,11 @@ ${propiedadesLista}
 - Si el usuario quiere hablar con una persona, decile que un asesor lo va a contactar y pedí sus datos.
 
 ## Extracción de datos
-Cuando el usuario mencione su nombre, teléfono o horario preferido de contacto, respondé normalmente pero también incluí al FINAL de tu mensaje (invisible para el usuario) en este formato exacto:
-[LEAD:nombre=Juan,telefono=099123456,horario=tarde]
+Cuando el usuario mencione su nombre o teléfono, respondé normalmente pero también incluí al FINAL de tu mensaje (invisible para el usuario) en este formato exacto:
+[LEAD:nombre=Juan,telefono=099123456,horario=tarde,resumen=Busca apartamento 2 dorm. para alquilar en Pocitos, presupuesto $1.500/mes]
 
-- Incluí el campo "horario" solo si el usuario lo especificó. Si no lo mencionó, omití ese campo del tag.
+Reglas del tag:
+- "horario": incluilo solo si el usuario lo especificó.
+- "resumen": siempre incluilo. Escribí una frase corta (máx. 15 palabras) describiendo qué busca el usuario según la conversación. Si no hay contexto claro, usá "Consulta general sobre propiedades".
 - Solo incluí el tag cuando hayas capturado datos nuevos. No lo repitas en cada mensaje.`;
 }
