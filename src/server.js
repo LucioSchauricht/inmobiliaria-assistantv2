@@ -37,17 +37,48 @@ app.get("/demo", (req, res) => {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Demo Asistente IA</title>
+  <title>Demo — Asistente IA</title>
   <style>
-    body { font-family: sans-serif; padding: 40px; background: #f8fafc; color: #1e293b; }
-    h1 { color: #2563eb; }
-    .token { background: #e0e7ff; padding: 4px 10px; border-radius: 6px; font-family: monospace; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #FAFAFA; color: #09090B; min-height: 100vh;
+      display: flex; align-items: center; justify-content: center; padding: 40px 24px;
+      -webkit-font-smoothing: antialiased;
+    }
+    .card {
+      background: #fff; border: 1px solid #E4E4E7; border-radius: 12px;
+      padding: 40px; max-width: 480px; width: 100%;
+    }
+    .mark {
+      width: 36px; height: 36px; border-radius: 8px; background: #18181B;
+      display: flex; align-items: center; justify-content: center; margin-bottom: 20px;
+    }
+    h1 { font-size: 1.25rem; font-weight: 600; margin-bottom: 8px; }
+    p { color: #71717A; font-size: .9rem; line-height: 1.6; margin-bottom: 6px; }
+    .token-row {
+      display: flex; align-items: center; gap: 10px;
+      background: #FAFAFA; border: 1px solid #E4E4E7; border-radius: 7px;
+      padding: 10px 14px; margin-top: 20px;
+    }
+    .token-label { font-size: .72rem; font-weight: 600; color: #A1A1AA; text-transform: uppercase; letter-spacing: .06em; white-space: nowrap; }
+    .token-value { font-family: monospace; font-size: .875rem; color: #3F3F46; }
+    .hint { margin-top: 20px; font-size: .8125rem; color: #A1A1AA; }
   </style>
 </head>
 <body>
-  <h1>🏠 Página demo de inmobiliaria</h1>
-  <p>Esta es una página de prueba. El widget está cargado con token: <span class="token">${token}</span></p>
-  <p>Hacé click en el botón azul 💬 en la esquina inferior derecha.</p>
+  <div class="card">
+    <div class="mark">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+    </div>
+    <h1>Página de demo</h1>
+    <p>Esta es una página de prueba del widget de chat para inmobiliarias.</p>
+    <div class="token-row">
+      <span class="token-label">Token</span>
+      <span class="token-value">${token}</span>
+    </div>
+    <p class="hint">El widget aparece en la esquina inferior derecha.</p>
+  </div>
   <script src="/widget.js?token=${token}"></script>
 </body>
 </html>`);
