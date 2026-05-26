@@ -1,5 +1,11 @@
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_KEY
+);
+
 const sessions = new Map();
-const leads = [];
 
 export const db = {
   getSession(sessionId) {
@@ -22,31 +28,56 @@ export const db = {
     return this.getSession(sessionId).messages;
   },
 
-  updateLead(sessionId, data, token = "DEMO-TOKEN-001") {
+  async updateLead(sessionId, data, token = "DEMO-TOKEN-001") {
     const session = this.getSession(sessionId);
     session.leadData = { ...session.leadData, ...data };
 
-    if (session.leadData.nombre && session.leadData.telefono) {
-      const existing = leads.find((l) => l.sessionId === sessionId);
-      if (existing) {
-        Object.assign(existing, session.leadData, { updatedAt: new Date() });
-      } else {
-        leads.push({
-          id: leads.length + 1,
-          sessionId,
-          token,                      // qué cliente generó este lead
-          ...session.leadData,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        });
-        console.log(`📋 Nuevo lead [${token}]: ${session.leadData.nombre} - ${session.leadData.telefono}`);
-      }
+    const { nombre, telefono, email } = session.leadData;
+    if (!nombre || !telefono) return;
+
+    const { error } = await supabase.from("leads").upsert(
+      {
+        session_id: sessionId,
+        token,
+        nombre,
+        telefono,
+        email: email || null,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "session_id" }
+    );
+
+    if (error) {
+      console.error("❌ Error guardando lead en Supabase:", error.message);
+    } else {
+      console.log(`📋 Lead guardado [${token}]: ${nombre} - ${telefono}`);
     }
   },
 
-  getAllLeads(token = null) {
-    const all = leads.sort((a, b) => b.createdAt - a.createdAt);
-    // Si se pasa un token, filtra solo los leads de ese cliente
-    return token ? all.filter((l) => l.token === token) : all;
+  async getAllLeads(token = null) {
+    let query = supabase
+      .from("leads")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (token) query = query.eq("token", token);
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error("❌ Error leyendo leads de Supabase:", error.message);
+      return [];
+    }
+
+    return data.map((row) => ({
+      id: row.id,
+      sessionId: row.session_id,
+      token: row.token,
+      nombre: row.nombre,
+      telefono: row.telefono,
+      email: row.email,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
   },
 };
