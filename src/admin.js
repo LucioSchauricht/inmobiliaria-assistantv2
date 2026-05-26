@@ -96,6 +96,25 @@ adminRouter.post("/api/clientes", requireAdmin, async (req, res) => {
   res.json({ ok: true, token });
 });
 
+adminRouter.patch("/api/clientes/:token", requireAdmin, async (req, res) => {
+  const { nombre, ciudad, telefono, horario, propiedades } = req.body;
+  if (!nombre || !ciudad || !telefono || !horario) {
+    return res.status(400).json({ error: "Faltan campos obligatorios" });
+  }
+  const { error } = await supabase
+    .from("clientes")
+    .update({
+      nombre,
+      ciudad,
+      telefono,
+      horario,
+      propiedades: Array.isArray(propiedades) ? propiedades.filter(Boolean) : [],
+    })
+    .eq("token", req.params.token);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ ok: true });
+});
+
 adminRouter.delete("/api/clientes/:token", requireAdmin, async (req, res) => {
   const { error } = await supabase
     .from("clientes")

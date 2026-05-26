@@ -188,7 +188,19 @@
       font-weight: 700;
     }
 
-    .del-wrap { display: flex; align-items: center; gap: 6px; }
+    /* Action buttons */
+    .actions-cell { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    .btn-edit {
+      background: none;
+      border: 1px solid #bfdbfe;
+      border-radius: 7px;
+      padding: 5px 12px;
+      font-size: .82rem;
+      color: #2563eb;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .btn-edit:hover { background: #eff6ff; }
     .btn-del {
       background: none;
       border: 1px solid #fca5a5;
@@ -244,6 +256,16 @@
       padding: 32px;
     }
     .modal-card h2 { font-size: 1.2rem; font-weight: 700; margin-bottom: 22px; }
+
+    .token-readonly {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 9px;
+      padding: 10px 14px;
+      margin-bottom: 14px;
+    }
+    .token-readonly .tr-label { font-size: .72rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 3px; }
+    .token-readonly .tr-value { font-family: monospace; font-size: .9rem; color: #475569; }
 
     .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
     .f-field { display: flex; flex-direction: column; gap: 5px; }
@@ -418,9 +440,16 @@
 <div id="modal" class="modal-backdrop" style="display:none" onclick="handleBackdrop(event)">
   <div class="modal-card">
 
-    <!-- Form view -->
+    <!-- Form view (crear y editar) -->
     <div id="form-view">
-      <h2>Nuevo cliente</h2>
+      <h2 id="modal-title">Nuevo cliente</h2>
+
+      <!-- Token display (solo en modo edición) -->
+      <div id="modal-token-row" class="token-readonly" style="display:none">
+        <div class="tr-label">Token (no editable)</div>
+        <div class="tr-value" id="modal-token-val">—</div>
+      </div>
+
       <div class="form-grid">
         <div class="f-field">
           <label>Nombre de la inmobiliaria *</label>
@@ -449,7 +478,7 @@
       <div class="form-error" id="form-error"></div>
     </div>
 
-    <!-- Success view -->
+    <!-- Success view (solo al crear) -->
     <div id="success-view" style="display:none" class="success-view">
       <div class="check">✅</div>
       <h3>¡Cliente creado!</h3>
@@ -467,6 +496,7 @@
 
 <script>
   let clientes = [];
+  let editingToken = null;
 
   // ── Auth ──────────────────────────────────────────────────
   async function init() {
@@ -521,8 +551,8 @@
   }
 
   function renderTable() {
-    const tbody    = document.getElementById("tbody");
-    const emptyEl  = document.getElementById("empty-state");
+    const tbody   = document.getElementById("tbody");
+    const emptyEl = document.getElementById("empty-state");
     const totalLeads = clientes.reduce((s, c) => s + c.lead_count, 0);
 
     document.getElementById("stat-clientes").textContent = clientes.length;
@@ -548,7 +578,8 @@
         <td><span class="lead-badge">${c.lead_count}</span></td>
         <td style="color:#64748b;font-size:.85rem">${fmtDate(c.created_at)}</td>
         <td>
-          <div class="del-wrap">
+          <div class="actions-cell">
+            <button class="btn-edit" onclick="openEditModal('${esc(c.token)}')">Editar</button>
             <button class="btn-del" onclick="askDelete(this, '${esc(c.token)}')">Eliminar</button>
             <div class="confirm-wrap" id="confirm-${esc(c.token)}">
               <span>¿Eliminar?</span>
@@ -569,7 +600,7 @@
 
   function cancelDelete(token, noBtn) {
     document.getElementById("confirm-" + token).style.display = "none";
-    noBtn.closest(".del-wrap").querySelector(".btn-del").style.display = "inline-block";
+    noBtn.closest(".actions-cell").querySelector(".btn-del").style.display = "inline-block";
   }
 
   async function confirmDelete(token) {
@@ -583,14 +614,46 @@
   }
 
   // ── Modal ─────────────────────────────────────────────────
-  function openModal() {
-    document.getElementById("modal").style.display = "flex";
-    document.getElementById("form-view").style.display = "block";
+  function openModal(cliente = null) {
+    editingToken = cliente ? cliente.token : null;
+
+    document.getElementById("modal").style.display        = "flex";
+    document.getElementById("form-view").style.display    = "block";
     document.getElementById("success-view").style.display = "none";
-    document.getElementById("form-error").style.display = "none";
-    ["f-nombre","f-ciudad","f-tel","f-horario"].forEach(id => document.getElementById(id).value = "");
-    document.getElementById("props-list").innerHTML = "";
-    addProp();
+    document.getElementById("form-error").style.display   = "none";
+
+    // Título y token readonly
+    document.getElementById("modal-title").textContent = cliente ? "Editar cliente" : "Nuevo cliente";
+    const tokenRow = document.getElementById("modal-token-row");
+    if (cliente) {
+      document.getElementById("modal-token-val").textContent = cliente.token;
+      tokenRow.style.display = "block";
+    } else {
+      tokenRow.style.display = "none";
+    }
+
+    // Campos del formulario
+    document.getElementById("f-nombre").value  = cliente?.nombre   || "";
+    document.getElementById("f-ciudad").value  = cliente?.ciudad   || "";
+    document.getElementById("f-tel").value     = cliente?.telefono || "";
+    document.getElementById("f-horario").value = cliente?.horario  || "";
+
+    // Propiedades
+    const propsList = document.getElementById("props-list");
+    propsList.innerHTML = "";
+    const props = cliente?.propiedades || [];
+    if (props.length > 0) {
+      props.forEach((p) => addProp(p));
+    } else {
+      addProp();
+    }
+
+    document.getElementById("submit-btn").textContent = cliente ? "Guardar cambios" : "Crear cliente";
+  }
+
+  function openEditModal(token) {
+    const cliente = clientes.find((c) => c.token === token);
+    if (cliente) openModal(cliente);
   }
 
   function closeModal() {
@@ -602,25 +665,25 @@
     if (e.target === document.getElementById("modal")) closeModal();
   }
 
-  function addProp() {
+  function addProp(value = "") {
     const list = document.getElementById("props-list");
     const row  = document.createElement("div");
     row.className = "prop-row";
     row.innerHTML = `
-      <input type="text" placeholder="Ej: Apartamento 2 dorm., Pocitos, $1.800/mes alquiler">
+      <input type="text" value="${esc(value)}" placeholder="Ej: Apartamento 2 dorm., Pocitos, $1.800/mes alquiler">
       <button class="btn-rm" onclick="this.parentElement.remove()">×</button>
     `;
     list.appendChild(row);
-    row.querySelector("input").focus();
+    if (!value) row.querySelector("input").focus();
   }
 
   async function submitCliente() {
-    const nombre     = document.getElementById("f-nombre").value.trim();
-    const ciudad     = document.getElementById("f-ciudad").value.trim();
-    const telefono   = document.getElementById("f-tel").value.trim();
-    const horario    = document.getElementById("f-horario").value.trim();
+    const nombre      = document.getElementById("f-nombre").value.trim();
+    const ciudad      = document.getElementById("f-ciudad").value.trim();
+    const telefono    = document.getElementById("f-tel").value.trim();
+    const horario     = document.getElementById("f-horario").value.trim();
     const propiedades = Array.from(document.querySelectorAll("#props-list input"))
-      .map(el => el.value.trim()).filter(Boolean);
+      .map((el) => el.value.trim()).filter(Boolean);
 
     const errEl = document.getElementById("form-error");
     errEl.style.display = "none";
@@ -633,26 +696,37 @@
 
     const btn = document.getElementById("submit-btn");
     btn.disabled = true;
-    btn.textContent = "Creando...";
+    btn.textContent = editingToken ? "Guardando..." : "Creando...";
 
     try {
-      const res  = await fetch("/admin/api/clientes", {
-        method: "POST",
+      const url    = editingToken
+        ? `/admin/api/clientes/${encodeURIComponent(editingToken)}`
+        : "/admin/api/clientes";
+      const method = editingToken ? "PATCH" : "POST";
+
+      const res  = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ nombre, ciudad, telefono, horario, propiedades }),
       });
       const data = await res.json();
+
       if (!res.ok) {
-        errEl.textContent = data.error || "Error al crear el cliente.";
+        errEl.textContent = data.error || "Error al guardar.";
         errEl.style.display = "block";
         return;
       }
-      document.getElementById("new-token").textContent = data.token;
-      document.getElementById("form-view").style.display    = "none";
-      document.getElementById("success-view").style.display = "block";
+
+      if (editingToken) {
+        closeModal();
+      } else {
+        document.getElementById("new-token").textContent        = data.token;
+        document.getElementById("form-view").style.display      = "none";
+        document.getElementById("success-view").style.display   = "block";
+      }
     } finally {
       btn.disabled = false;
-      btn.textContent = "Crear cliente";
+      btn.textContent = editingToken ? "Guardar cambios" : "Crear cliente";
     }
   }
 
@@ -684,7 +758,7 @@
       .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
   }
 
-  document.getElementById("pass-input").addEventListener("keydown", e => {
+  document.getElementById("pass-input").addEventListener("keydown", (e) => {
     if (e.key === "Enter") login();
   });
 
