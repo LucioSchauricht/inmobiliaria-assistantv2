@@ -94,6 +94,7 @@ export const db = {
       email: row.email,
       horario: row.horario,
       resumen: row.resumen,
+      contactado: row.contactado,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     }));

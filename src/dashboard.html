@@ -249,6 +249,20 @@
       white-space: nowrap;
     }
     .btn-ver-chat:hover { background: #18181B; color: #fff; border-color: #18181B; }
+    .btn-contactado {
+      background: none;
+      border: 1px solid #E4E4E7;
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: .775rem;
+      color: #52525B;
+      cursor: pointer;
+      transition: background .12s, color .12s, border-color .12s;
+      white-space: nowrap;
+    }
+    .btn-contactado:hover:not(:disabled) { background: #F0FDF4; color: #16A34A; border-color: #BBF7D0; }
+    .btn-contactado.done { background: #F0FDF4; color: #16A34A; border-color: #BBF7D0; cursor: default; }
+    .btn-contactado:disabled { cursor: default; }
 
     /* ── Conversation Modal ── */
     .modal-backdrop {
@@ -545,11 +559,22 @@
         <td class="muted" style="font-size:.825rem">${formatDate(lead.createdAt)}</td>
         <td></td>
       `;
-      const btn = document.createElement("button");
-      btn.className = "btn-ver-chat";
-      btn.textContent = "Ver chat";
-      btn.addEventListener("click", () => openConvModal(lead));
-      tr.lastElementChild.appendChild(btn);
+      const actionsCell = tr.lastElementChild;
+
+      const btnChat = document.createElement("button");
+      btnChat.className = "btn-ver-chat";
+      btnChat.textContent = "Ver chat";
+      btnChat.addEventListener("click", () => openConvModal(lead));
+      actionsCell.appendChild(btnChat);
+
+      const btnContact = document.createElement("button");
+      btnContact.className = "btn-contactado" + (lead.contactado ? " done" : "");
+      btnContact.textContent = lead.contactado ? "Contactado ✓" : "Contactado";
+      btnContact.disabled = lead.contactado;
+      btnContact.style.marginLeft = "6px";
+      btnContact.addEventListener("click", () => marcarContactado(lead.id, btnContact));
+      actionsCell.appendChild(btnContact);
+
       tbody.appendChild(tr);
     });
   }
@@ -558,6 +583,24 @@
     return String(str)
       .replace(/&/g, "&amp;").replace(/</g, "&lt;")
       .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
+  async function marcarContactado(leadId, btn) {
+    btn.disabled = true;
+    btn.textContent = "Guardando…";
+    try {
+      const res = await fetch(`/leads/${leadId}/contactado`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: currentToken }),
+      });
+      if (!res.ok) throw new Error();
+      btn.classList.add("done");
+      btn.textContent = "Contactado ✓";
+    } catch {
+      btn.disabled = false;
+      btn.textContent = "Contactado";
+    }
   }
 
   async function openConvModal(lead) {
