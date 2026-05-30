@@ -77,7 +77,7 @@ adminRouter.get("/api/clientes", requireAdmin, async (req, res) => {
 });
 
 adminRouter.post("/api/clientes", requireAdmin, async (req, res) => {
-  const { nombre, ciudad, telefono, horario, propiedades } = req.body;
+  const { nombre, ciudad, telefono, horario, propiedades, email_contacto } = req.body;
   if (!nombre || !ciudad || !telefono || !horario) {
     return res.status(400).json({ error: "Faltan campos obligatorios" });
   }
@@ -90,6 +90,7 @@ adminRouter.post("/api/clientes", requireAdmin, async (req, res) => {
     telefono,
     horario,
     propiedades: Array.isArray(propiedades) ? propiedades.filter(Boolean) : [],
+    email_contacto: email_contacto || null,
   });
 
   if (error) return res.status(500).json({ error: error.message });
@@ -97,7 +98,7 @@ adminRouter.post("/api/clientes", requireAdmin, async (req, res) => {
 });
 
 adminRouter.patch("/api/clientes/:token", requireAdmin, async (req, res) => {
-  const { nombre, ciudad, telefono, horario, propiedades } = req.body;
+  const { nombre, ciudad, telefono, horario, propiedades, email_contacto } = req.body;
   if (!nombre || !ciudad || !telefono || !horario) {
     return res.status(400).json({ error: "Faltan campos obligatorios" });
   }
@@ -109,6 +110,7 @@ adminRouter.patch("/api/clientes/:token", requireAdmin, async (req, res) => {
       telefono,
       horario,
       propiedades: Array.isArray(propiedades) ? propiedades.filter(Boolean) : [],
+      email_contacto: email_contacto || null,
     })
     .eq("token", req.params.token);
   if (error) return res.status(500).json({ error: error.message });

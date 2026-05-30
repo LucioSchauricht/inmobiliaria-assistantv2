@@ -384,6 +384,12 @@
           <input type="text" id="f-horario" placeholder="Lunes a viernes 9:00–18:00">
         </div>
       </div>
+      <div class="f-field" style="margin-bottom:16px;">
+        <label>Email de notificaciones</label>
+        <input type="text" id="f-email" placeholder="contacto@inmobiliaria.com">
+        <span style="display:block;font-size:.75rem;color:#A1A1AA;margin-top:4px;">Recibirá un email cada vez que se capture un lead nuevo.</span>
+      </div>
+
       <div class="section-label">Propiedades disponibles</div>
       <div class="props-list" id="props-list"></div>
       <button class="btn-add-prop" onclick="addProp()">+ Agregar propiedad</button>
@@ -539,10 +545,11 @@
       tokenRow.style.display = "none";
     }
 
-    document.getElementById("f-nombre").value  = cliente?.nombre   || "";
-    document.getElementById("f-ciudad").value  = cliente?.ciudad   || "";
-    document.getElementById("f-tel").value     = cliente?.telefono || "";
-    document.getElementById("f-horario").value = cliente?.horario  || "";
+    document.getElementById("f-nombre").value  = cliente?.nombre          || "";
+    document.getElementById("f-ciudad").value  = cliente?.ciudad          || "";
+    document.getElementById("f-tel").value     = cliente?.telefono        || "";
+    document.getElementById("f-horario").value = cliente?.horario         || "";
+    document.getElementById("f-email").value   = cliente?.email_contacto  || "";
 
     const propsList = document.getElementById("props-list");
     propsList.innerHTML = "";
@@ -580,11 +587,12 @@
   }
 
   async function submitCliente() {
-    const nombre      = document.getElementById("f-nombre").value.trim();
-    const ciudad      = document.getElementById("f-ciudad").value.trim();
-    const telefono    = document.getElementById("f-tel").value.trim();
-    const horario     = document.getElementById("f-horario").value.trim();
-    const propiedades = Array.from(document.querySelectorAll("#props-list input"))
+    const nombre          = document.getElementById("f-nombre").value.trim();
+    const ciudad          = document.getElementById("f-ciudad").value.trim();
+    const telefono        = document.getElementById("f-tel").value.trim();
+    const horario         = document.getElementById("f-horario").value.trim();
+    const email_contacto  = document.getElementById("f-email").value.trim();
+    const propiedades     = Array.from(document.querySelectorAll("#props-list input"))
       .map((el) => el.value.trim()).filter(Boolean);
 
     const errEl = document.getElementById("form-error");
@@ -606,7 +614,7 @@
       const method = editingToken ? "PATCH" : "POST";
       const res    = await fetch(url, {
         method, headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nombre, ciudad, telefono, horario, propiedades }),
+        body: JSON.stringify({ nombre, ciudad, telefono, horario, propiedades, email_contacto }),
       });
       const data = await res.json();
       if (!res.ok) {

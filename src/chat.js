@@ -89,7 +89,10 @@ rawText = response.content[0]?.text || "Error al leer respuesta";
 
     const leadData = extractLeadData(rawText);
     if (leadData) {
-      await db.updateLead(sessionId, leadData, clienteToken);
+      await db.updateLead(sessionId, leadData, clienteToken, {
+        nombre: cliente.nombre,
+        email_contacto: cliente.email_contacto,
+      });
     }
 
     const cleanText = cleanMessage(rawText);

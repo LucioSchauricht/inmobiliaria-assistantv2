@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { sendLeadNotification } from "./email.js";
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -12,7 +13,7 @@ export const db = {
     if (!sessions.has(sessionId)) {
       sessions.set(sessionId, {
         messages: [],
-        leadData: { nombre: null, telefono: null, email: null, horario: null, resumen: null },
+        leadData: { nombre: null, telefono: null, email: null, horario: null, resumen: null, emailSent: false },
         createdAt: new Date(),
       });
     }
@@ -28,11 +29,11 @@ export const db = {
     return this.getSession(sessionId).messages;
   },
 
-  async updateLead(sessionId, data, token = "DEMO-TOKEN-001") {
+  async updateLead(sessionId, data, token = "DEMO-TOKEN-001", clienteInfo = null) {
     const session = this.getSession(sessionId);
     session.leadData = { ...session.leadData, ...data };
 
-    const { nombre, telefono, email, horario, resumen } = session.leadData;
+    const { nombre, telefono, email, horario, resumen, emailSent } = session.leadData;
     if (!nombre || !telefono) return;
 
     const { error } = await supabase.from("leads").upsert(
@@ -51,8 +52,18 @@ export const db = {
 
     if (error) {
       console.error("❌ Error guardando lead en Supabase:", error.message);
-    } else {
-      console.log(`📋 Lead guardado [${token}]: ${nombre} - ${telefono}`);
+      return;
+    }
+
+    console.log(`📋 Lead guardado [${token}]: ${nombre} - ${telefono}`);
+
+    if (!emailSent && clienteInfo?.email_contacto) {
+      session.leadData.emailSent = true;
+      await sendLeadNotification({
+        clienteNombre: clienteInfo.nombre,
+        clienteEmail: clienteInfo.email_contacto,
+        lead: { nombre, telefono, horario, resumen },
+      });
     }
   },
 
