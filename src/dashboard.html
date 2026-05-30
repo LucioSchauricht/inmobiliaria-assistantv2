@@ -237,7 +237,18 @@
     }
     .empty-state p { font-size: .875rem; line-height: 1.6; }
 
-    tbody tr { cursor: pointer; }
+    .btn-ver-chat {
+      background: none;
+      border: 1px solid #E4E4E7;
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: .775rem;
+      color: #52525B;
+      cursor: pointer;
+      transition: background .12s, color .12s, border-color .12s;
+      white-space: nowrap;
+    }
+    .btn-ver-chat:hover { background: #18181B; color: #fff; border-color: #18181B; }
 
     /* ── Conversation Modal ── */
     .modal-backdrop {
@@ -323,7 +334,8 @@
       .topbar { padding: 0 16px; }
       .main { padding: 20px 16px; }
       thead th:nth-child(4), tbody td:nth-child(4),
-      thead th:nth-child(5), tbody td:nth-child(5) { display: none; }
+      thead th:nth-child(5), tbody td:nth-child(5),
+      thead th:nth-child(6), tbody td:nth-child(6) { display: none; }
     }
   </style>
 </head>
@@ -402,6 +414,7 @@
             <th>Email</th>
             <th>Horario de contacto</th>
             <th>Fecha</th>
+            <th></th>
           </tr>
         </thead>
         <tbody id="leads-tbody"></tbody>
@@ -530,8 +543,13 @@
         </td>
         <td>${lead.horario ? escHtml(lead.horario) : '<span class="muted">No especificó</span>'}</td>
         <td class="muted" style="font-size:.825rem">${formatDate(lead.createdAt)}</td>
+        <td></td>
       `;
-      tr.addEventListener("click", () => openConvModal(lead));
+      const btn = document.createElement("button");
+      btn.className = "btn-ver-chat";
+      btn.textContent = "Ver chat";
+      btn.addEventListener("click", () => openConvModal(lead));
+      tr.lastElementChild.appendChild(btn);
       tbody.appendChild(tr);
     });
   }
