@@ -23,6 +23,9 @@ export const db = {
   addMessage(sessionId, role, content) {
     const session = this.getSession(sessionId);
     session.messages.push({ role, content });
+    supabase.from("conversaciones")
+      .insert({ session_id: sessionId, role, content })
+      .then(({ error }) => { if (error) console.error("❌ Error guardando mensaje:", error.message); });
   },
 
   getMessages(sessionId) {
