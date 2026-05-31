@@ -98,6 +98,18 @@ app.get("/cliente", async (req, res) => {
   res.json({ nombre: cliente.nombre, ciudad: cliente.ciudad });
 });
 
+// Configuración visual del widget
+app.get("/cliente-config", async (req, res) => {
+  const { token } = req.query;
+  if (!token) return res.status(400).json({ error: "token requerido" });
+  const cliente = await getCliente(token);
+  if (!cliente) return res.status(404).json({ error: "token inválido" });
+  res.json({
+    color_primario:   cliente.color_primario   || "#18181B",
+    color_secundario: cliente.color_secundario || "#2563EB",
+  });
+});
+
 // Admin
 app.use("/admin", adminRouter);
 

@@ -233,6 +233,18 @@
     }
     .btn-add-prop:hover { border-color: #18181B; color: #18181B; background: #F4F4F5; }
 
+    .color-field { display: flex; align-items: center; gap: 8px; }
+    input[type="color"] {
+      width: 34px; height: 34px; padding: 2px 3px;
+      border: 1px solid #E4E4E7; border-radius: 6px;
+      cursor: pointer; background: #fff; flex-shrink: 0;
+    }
+    .color-field input[type="text"] { font-family: monospace; letter-spacing: .04em; }
+    .color-preview {
+      width: 14px; height: 14px; border-radius: 3px;
+      border: 1px solid rgba(0,0,0,.08); flex-shrink: 0;
+    }
+
     .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 22px; }
     .btn-cancel {
       background: none; border: 1px solid #E4E4E7;
@@ -388,6 +400,23 @@
         <label>Email de notificaciones</label>
         <input type="text" id="f-email" placeholder="contacto@inmobiliaria.com">
         <span style="display:block;font-size:.75rem;color:#A1A1AA;margin-top:4px;">Recibirá un email cada vez que se capture un lead nuevo.</span>
+      </div>
+
+      <div class="form-grid" style="margin-bottom:16px;">
+        <div class="f-field">
+          <label>Color principal del widget</label>
+          <div class="color-field">
+            <input type="color" id="f-color-primary" value="#18181B">
+            <input type="text"  id="f-color-primary-hex" value="#18181B" maxlength="7" placeholder="#18181B">
+          </div>
+        </div>
+        <div class="f-field">
+          <label>Color de acento</label>
+          <div class="color-field">
+            <input type="color" id="f-color-accent" value="#2563EB">
+            <input type="text"  id="f-color-accent-hex" value="#2563EB" maxlength="7" placeholder="#2563EB">
+          </div>
+        </div>
       </div>
 
       <div class="section-label">Propiedades disponibles</div>
@@ -551,6 +580,13 @@
     document.getElementById("f-horario").value = cliente?.horario         || "";
     document.getElementById("f-email").value   = cliente?.email_contacto  || "";
 
+    const cp = cliente?.color_primario   || "#18181B";
+    const ca = cliente?.color_secundario || "#2563EB";
+    document.getElementById("f-color-primary").value     = cp;
+    document.getElementById("f-color-primary-hex").value = cp;
+    document.getElementById("f-color-accent").value      = ca;
+    document.getElementById("f-color-accent-hex").value  = ca;
+
     const propsList = document.getElementById("props-list");
     propsList.innerHTML = "";
     const props = cliente?.propiedades || [];
@@ -592,6 +628,8 @@
     const telefono        = document.getElementById("f-tel").value.trim();
     const horario         = document.getElementById("f-horario").value.trim();
     const email_contacto  = document.getElementById("f-email").value.trim();
+    const color_primario   = document.getElementById("f-color-primary").value;
+    const color_secundario = document.getElementById("f-color-accent").value;
     const propiedades     = Array.from(document.querySelectorAll("#props-list input"))
       .map((el) => el.value.trim()).filter(Boolean);
 
@@ -614,7 +652,7 @@
       const method = editingToken ? "PATCH" : "POST";
       const res    = await fetch(url, {
         method, headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nombre, ciudad, telefono, horario, propiedades, email_contacto }),
+        body: JSON.stringify({ nombre, ciudad, telefono, horario, propiedades, email_contacto, color_primario, color_secundario }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -661,6 +699,17 @@
       .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
   }
+
+  function syncColorPair(colorId, hexId) {
+    const colorInput = document.getElementById(colorId);
+    const hexInput   = document.getElementById(hexId);
+    colorInput.addEventListener("input", () => { hexInput.value = colorInput.value; });
+    hexInput.addEventListener("input", () => {
+      if (/^#[0-9a-fA-F]{6}$/.test(hexInput.value)) colorInput.value = hexInput.value;
+    });
+  }
+  syncColorPair("f-color-primary", "f-color-primary-hex");
+  syncColorPair("f-color-accent",  "f-color-accent-hex");
 
   document.getElementById("pass-input").addEventListener("keydown", (e) => {
     if (e.key === "Enter") login();

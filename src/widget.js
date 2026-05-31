@@ -26,7 +26,7 @@
     #ai-widget-btn {
       position: fixed; bottom: 24px; right: 24px; z-index: 9999;
       width: 52px; height: 52px; border-radius: 50%;
-      background: #18181B; color: #fff; border: none; cursor: pointer;
+      background: var(--wc-primary); color: #fff; border: none; cursor: pointer;
       box-shadow: 0 2px 12px rgba(0,0,0,0.18), 0 1px 3px rgba(0,0,0,0.1);
       display: flex; align-items: center; justify-content: center;
       transition: transform 0.15s ease, box-shadow 0.15s ease;
@@ -60,7 +60,7 @@
     }
     .ai-avatar {
       width: 30px; height: 30px; border-radius: 7px;
-      background: #18181B;
+      background: var(--wc-primary);
       display: flex; align-items: center; justify-content: center; flex-shrink: 0;
     }
     .ai-info { flex: 1; min-width: 0; }
@@ -97,7 +97,7 @@
       background: #F4F4F5; color: #09090B; border-bottom-left-radius: 4px;
     }
     .ai-msg.user .ai-bubble {
-      background: #18181B; color: #fff; border-bottom-right-radius: 4px;
+      background: var(--wc-primary); color: #fff; border-bottom-right-radius: 4px;
     }
 
     .ai-typing-bubble {
@@ -128,10 +128,10 @@
       transition: border-color 0.15s, background 0.15s;
     }
     #ai-widget-input input::placeholder { color: #A1A1AA; }
-    #ai-widget-input input:focus { border-color: #18181B; background: #fff; }
+    #ai-widget-input input:focus { border-color: var(--wc-primary); background: #fff; }
     #ai-send-btn {
       width: 34px; height: 34px; border-radius: 8px;
-      background: #18181B; color: #fff; border: none;
+      background: var(--wc-accent); color: #fff; border: none;
       cursor: pointer; display: flex; align-items: center; justify-content: center;
       flex-shrink: 0; transition: opacity 0.15s;
     }
@@ -170,8 +170,18 @@
   document.head.appendChild(style);
 
   const container = document.createElement("div");
+  container.style.cssText = "--wc-primary:#18181B;--wc-accent:#2563EB";
   container.innerHTML = html;
   document.body.appendChild(container);
+
+  // Cargar colores del cliente y aplicarlos
+  fetch(`${SERVER_URL}/cliente-config?token=${encodeURIComponent(token)}`)
+    .then((r) => r.json())
+    .then((cfg) => {
+      container.style.setProperty("--wc-primary", cfg.color_primario);
+      container.style.setProperty("--wc-accent",  cfg.color_secundario);
+    })
+    .catch(() => {});
 
   const btn      = document.getElementById("ai-widget-btn");
   const box      = document.getElementById("ai-widget-box");
