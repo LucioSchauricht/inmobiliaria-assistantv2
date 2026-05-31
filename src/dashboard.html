@@ -263,6 +263,19 @@
     .btn-contactado:hover:not(:disabled) { background: #F0FDF4; color: #16A34A; border-color: #BBF7D0; }
     .btn-contactado.done { background: #F0FDF4; color: #16A34A; border-color: #BBF7D0; cursor: default; }
     .btn-contactado:disabled { cursor: default; }
+    .btn-undo {
+      background: none;
+      border: none;
+      color: #A1A1AA;
+      cursor: pointer;
+      font-size: .9rem;
+      line-height: 1;
+      padding: 2px 5px;
+      border-radius: 4px;
+      transition: color .12s, background .12s;
+    }
+    .btn-undo:hover { color: #DC2626; background: #FEF2F2; }
+    .td-actions { display: flex; align-items: center; gap: 6px; }
 
     /* ── Conversation Modal ── */
     .modal-backdrop {
@@ -557,7 +570,7 @@
         </td>
         <td>${lead.horario ? escHtml(lead.horario) : '<span class="muted">No especificó</span>'}</td>
         <td class="muted" style="font-size:.825rem">${formatDate(lead.createdAt)}</td>
-        <td></td>
+        <td class="td-actions"></td>
       `;
       const actionsCell = tr.lastElementChild;
 
@@ -565,16 +578,24 @@
       btnChat.className = "btn-ver-chat";
       btnChat.textContent = "Ver chat";
       btnChat.addEventListener("click", () => openConvModal(lead));
-      actionsCell.appendChild(btnChat);
 
       const btnContact = document.createElement("button");
       btnContact.className = "btn-contactado" + (lead.contactado ? " done" : "");
       btnContact.textContent = lead.contactado ? "Contactado ✓" : "Contactado";
       btnContact.disabled = lead.contactado;
-      btnContact.style.marginLeft = "6px";
-      btnContact.addEventListener("click", () => marcarContactado(lead.id, btnContact));
-      actionsCell.appendChild(btnContact);
 
+      const btnUndo = document.createElement("button");
+      btnUndo.className = "btn-undo";
+      btnUndo.title = "Deshacer";
+      btnUndo.textContent = "×";
+      btnUndo.style.display = lead.contactado ? "" : "none";
+
+      btnContact.addEventListener("click", () => marcarContactado(lead.id, btnContact, btnUndo));
+      btnUndo.addEventListener("click", () => desmarcarContactado(lead.id, btnContact, btnUndo));
+
+      actionsCell.appendChild(btnChat);
+      actionsCell.appendChild(btnContact);
+      actionsCell.appendChild(btnUndo);
       tbody.appendChild(tr);
     });
   }
@@ -585,21 +606,42 @@
       .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
 
-  async function marcarContactado(leadId, btn) {
+  async function marcarContactado(leadId, btn, btnUndo) {
     btn.disabled = true;
     btn.textContent = "Guardando…";
     try {
       const res = await fetch(`/leads/${leadId}/contactado`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token: currentToken }),
+        body: JSON.stringify({ token: currentToken, contactado: true }),
       });
       if (!res.ok) throw new Error();
       btn.classList.add("done");
       btn.textContent = "Contactado ✓";
+      btnUndo.style.display = "";
     } catch {
       btn.disabled = false;
       btn.textContent = "Contactado";
+    }
+  }
+
+  async function desmarcarContactado(leadId, btn, btnUndo) {
+    btnUndo.disabled = true;
+    try {
+      const res = await fetch(`/leads/${leadId}/contactado`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: currentToken, contactado: false }),
+      });
+      if (!res.ok) throw new Error();
+      btn.classList.remove("done");
+      btn.textContent = "Contactado";
+      btn.disabled = false;
+      btnUndo.style.display = "none";
+    } catch {
+      /* mantener estado si falla */
+    } finally {
+      btnUndo.disabled = false;
     }
   }
 

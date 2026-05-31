@@ -14,7 +14,7 @@ leadsRouter.get("/", async (req, res) => {
 
 leadsRouter.patch("/:id/contactado", async (req, res) => {
   const { id } = req.params;
-  const { token } = req.body;
+  const { token, contactado = true } = req.body;
   if (!token) return res.status(400).json({ error: "token es requerido" });
 
   const { data: lead, error: findError } = await supabase
@@ -28,7 +28,7 @@ leadsRouter.patch("/:id/contactado", async (req, res) => {
 
   const { error } = await supabase
     .from("leads")
-    .update({ contactado: true })
+    .update({ contactado: Boolean(contactado) })
     .eq("id", id);
 
   if (error) return res.status(500).json({ error: error.message });
