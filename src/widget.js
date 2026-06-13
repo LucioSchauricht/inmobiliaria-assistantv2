@@ -239,33 +239,45 @@
     const time = now.toLocaleTimeString("es-UY", { hour: "2-digit", minute: "2-digit" });
 
     const rows = [
-      { label: "Nombre:", value: lead.nombre },
-      { label: "Teléfono:", value: lead.telefono },
-      { label: "Horario:", value: lead.horario || "No especificado" },
-      { label: "Interés:", value: lead.resumen || "Consulta general" },
+      { label: "Nombre:",   value: lead.nombre              },
+      { label: "Teléfono:", value: lead.telefono            },
+      { label: "Horario:",  value: lead.horario || "No especificado" },
+      { label: "Interés:",  value: lead.resumen || "Consulta general" },
     ];
 
-    const rowsHtml = rows
-      .map(
-        (r) =>
-          `<div class="ai-lead-card-row">` +
-          `<span class="ai-lead-card-label">${r.label}</span>` +
-          `<span class="ai-lead-card-value">${r.value}</span>` +
-          `</div>`
-      )
-      .join("");
+    // Construir con DOM puro — sin innerHTML con datos del usuario (evita XSS)
+    const cardBox = document.createElement("div");
+    cardBox.className = "ai-lead-card";
+
+    const header = document.createElement("div");
+    header.className = "ai-lead-card-header";
+    const title = document.createElement("span");
+    title.className = "ai-lead-card-title";
+    title.textContent = "✅ Lead capturado";
+    const timeEl = document.createElement("span");
+    timeEl.className = "ai-lead-card-time";
+    timeEl.textContent = time;
+    header.appendChild(title);
+    header.appendChild(timeEl);
+    cardBox.appendChild(header);
+
+    rows.forEach(({ label, value }) => {
+      const row = document.createElement("div");
+      row.className = "ai-lead-card-row";
+      const lbl = document.createElement("span");
+      lbl.className = "ai-lead-card-label";
+      lbl.textContent = label;
+      const val = document.createElement("span");
+      val.className = "ai-lead-card-value";
+      val.textContent = value;  // textContent nunca ejecuta HTML
+      row.appendChild(lbl);
+      row.appendChild(val);
+      cardBox.appendChild(row);
+    });
 
     const card = document.createElement("div");
     card.className = "ai-msg bot";
-    card.innerHTML =
-      `<div class="ai-lead-card">` +
-      `<div class="ai-lead-card-header">` +
-      `<span class="ai-lead-card-title">✅ Lead capturado</span>` +
-      `<span class="ai-lead-card-time">${time}</span>` +
-      `</div>` +
-      rowsHtml +
-      `</div>`;
-
+    card.appendChild(cardBox);
     messages.appendChild(card);
     messages.scrollTop = messages.scrollHeight;
   }
