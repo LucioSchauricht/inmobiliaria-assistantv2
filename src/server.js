@@ -24,22 +24,26 @@ const chatLimiter = rateLimit({
   message: { error: "Demasiadas solicitudes, intentá en un momento" },
 });
 
-const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(",").map((o) => o.trim())
+// Origins permitidos para el panel admin/dashboard (solo tu dominio)
+const ADMIN_ORIGINS = process.env.ADMIN_ORIGINS
+  ? process.env.ADMIN_ORIGINS.split(",").map((o) => o.trim())
   : [];
 
-app.use(
-  cors({
-    origin(origin, cb) {
-      // No list configured → allow all (open/dev mode).
-      if (ALLOWED_ORIGINS.length === 0) return cb(null, true);
-      // List configured → allow only matching origins (or no-origin server requests).
-      if (!origin || ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
-      cb(new Error("Not allowed by CORS"));
-    },
-    credentials: true,
-  })
-);
+function makeOriginCheck(allowedList) {
+  return function (origin, cb) {
+    // Sin lista configurada → permitir todo (modo dev)
+    if (allowedList.length === 0) return cb(null, true);
+    // Con lista → solo orígenes permitidos o requests sin Origin (server-to-server)
+    if (!origin || allowedList.includes(origin)) return cb(null, true);
+    cb(new Error("Not allowed by CORS"));
+  };
+}
+
+// CORS abierto para el widget (se embebe en sitios externos)
+const widgetCors = cors({ origin: true, credentials: true });
+
+// CORS restringido para admin/leads (solo tu dominio)
+const adminCors = cors({ origin: makeOriginCheck(ADMIN_ORIGINS), credentials: true });
 app.use(express.json({ limit: "10kb" }));
 
 // ── Security headers ────────────────────────────────────────
@@ -177,8 +181,14 @@ app.get("/cliente", async (req, res) => {
   res.json({ nombre: cliente.nombre, ciudad: cliente.ciudad });
 });
 
-// Configuración visual del widget
-app.get("/cliente-config", async (req, res) => {
+// Admin y leads — solo tu dominio
+app.use("/admin", adminCors, adminRouter);
+app.use("/leads", adminCors, leadsRouter);
+
+// Widget endpoints — abiertos (el widget se embebe en sitios de clientes)
+app.post("/chat",    widgetCors, chatLimiter, chatHandler);
+app.post("/session", widgetCors, (req, res) => { res.json({ sessionId: randomUUID() }); });
+app.get("/cliente-config", widgetCors, async (req, res) => {
   const { token } = req.query;
   if (!token) return res.status(400).json({ error: "token requerido" });
   const cliente = await getCliente(token);
@@ -187,20 +197,6 @@ app.get("/cliente-config", async (req, res) => {
     color_primario:   cliente.color_primario   || "#18181B",
     color_secundario: cliente.color_secundario || "#2563EB",
   });
-});
-
-// Admin
-app.use("/admin", adminRouter);
-
-// Chat
-app.post("/chat", chatLimiter, chatHandler);
-
-// Leads
-app.use("/leads", leadsRouter);
-
-// Nueva sesión
-app.post("/session", (req, res) => {
-  res.json({ sessionId: randomUUID() });
 });
 
 // ── 404 handler ──────────────────────────────────────────────
