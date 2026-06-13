@@ -73,7 +73,7 @@ export const db = {
       return;
     }
 
-    console.log(`📋 Lead guardado [${token}]: ${nombre} - ${telefono}`);
+    console.log(`📋 Lead guardado [${token}]`);
 
     if (!emailSent && clienteInfo?.email_contacto) {
       session.leadData.emailSent = true;

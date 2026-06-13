@@ -90,8 +90,7 @@ export async function chatHandler(req, res) {
         system: buildSystemPrompt(cliente),
         messages: db.getMessages(sessionId),
       });
-      console.log("Respuesta API:", JSON.stringify(response.content));
-rawText = response.content[0]?.text || "Error al leer respuesta";
+      rawText = response.content[0]?.text || "Error al leer respuesta";
     }
 
     const leadData = extractLeadData(rawText);
