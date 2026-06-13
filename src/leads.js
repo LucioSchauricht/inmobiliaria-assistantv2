@@ -1,10 +1,9 @@
 import { Router } from "express";
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from "./supabase.js";
 import { db } from "./db.js";
 
 export const leadsRouter = Router();
 
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
 leadsRouter.get("/", async (req, res) => {
   const { token } = req.query;

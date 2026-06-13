@@ -1,12 +1,5 @@
-import { createClient } from "@supabase/supabase-js";
 import { sendLeadNotification } from "./email.js";
-import ws from "ws";
-
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_KEY,
-  { realtime: { transport: ws } }
-);
+import { supabase } from "./supabase.js";
 
 /**
  * Almacenamiento en memoria de sesiones activas.

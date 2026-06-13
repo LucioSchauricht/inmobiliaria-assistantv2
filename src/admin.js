@@ -7,13 +7,12 @@ function isValidColor(c) {
 }
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from "./supabase.js";
 import rateLimit from "express-rate-limit";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 export const adminRouter = Router();
 
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
 const HMAC_SECRET = process.env.ADMIN_SECRET;
 if (!HMAC_SECRET) {
