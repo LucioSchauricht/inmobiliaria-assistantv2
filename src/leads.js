@@ -29,7 +29,8 @@ leadsRouter.patch("/:id/contactado", async (req, res) => {
   const { error } = await supabase
     .from("leads")
     .update({ contactado: Boolean(contactado) })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("token", token);
 
   if (error) return res.status(500).json({ error: error.message });
   res.json({ ok: true });
