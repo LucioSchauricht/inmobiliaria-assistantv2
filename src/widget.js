@@ -138,6 +138,32 @@
     #ai-send-btn:hover { opacity: 0.82; }
     #ai-send-btn:disabled { background: #E4E4E7; cursor: default; opacity: 1; }
 
+    .ai-lead-card {
+      background: #fff; border-left: 3px solid #2563EB;
+      border-radius: 10px; padding: 10px 13px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 12.5px; max-width: 88%;
+    }
+    .ai-lead-card-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .ai-lead-card-title {
+      font-weight: 700; font-size: 13px; color: #09090B;
+    }
+    .ai-lead-card-time {
+      font-size: 11px; color: #71717A;
+    }
+    .ai-lead-card-row {
+      display: flex; gap: 6px; margin-bottom: 4px; line-height: 1.4;
+    }
+    .ai-lead-card-row:last-child { margin-bottom: 0; }
+    .ai-lead-card-label {
+      color: #71717A; font-weight: 500; flex-shrink: 0; min-width: 62px;
+    }
+    .ai-lead-card-value { color: #09090B; }
+
     @media (max-width: 420px) {
       #ai-widget-box { width: calc(100vw - 32px); right: 16px; }
       #ai-widget-btn { right: 16px; bottom: 16px; }
@@ -200,8 +226,47 @@
   function addMessage(text, role) {
     const div = document.createElement("div");
     div.className = `ai-msg ${role}`;
-    div.innerHTML = `<div class="ai-bubble">${text}</div>`;
+    const bubble = document.createElement("div");
+    bubble.className = "ai-bubble";
+    bubble.textContent = text;
+    div.appendChild(bubble);
     messages.appendChild(div);
+    messages.scrollTop = messages.scrollHeight;
+  }
+
+  function addLeadCard(lead) {
+    const now = new Date();
+    const time = now.toLocaleTimeString("es-UY", { hour: "2-digit", minute: "2-digit" });
+
+    const rows = [
+      { label: "Nombre:", value: lead.nombre },
+      { label: "Teléfono:", value: lead.telefono },
+      { label: "Horario:", value: lead.horario || "No especificado" },
+      { label: "Interés:", value: lead.resumen || "Consulta general" },
+    ];
+
+    const rowsHtml = rows
+      .map(
+        (r) =>
+          `<div class="ai-lead-card-row">` +
+          `<span class="ai-lead-card-label">${r.label}</span>` +
+          `<span class="ai-lead-card-value">${r.value}</span>` +
+          `</div>`
+      )
+      .join("");
+
+    const card = document.createElement("div");
+    card.className = "ai-msg bot";
+    card.innerHTML =
+      `<div class="ai-lead-card">` +
+      `<div class="ai-lead-card-header">` +
+      `<span class="ai-lead-card-title">✅ Lead capturado</span>` +
+      `<span class="ai-lead-card-time">${time}</span>` +
+      `</div>` +
+      rowsHtml +
+      `</div>`;
+
+    messages.appendChild(card);
     messages.scrollTop = messages.scrollHeight;
   }
 
@@ -237,6 +302,9 @@
       const data = await res.json();
       hideTyping();
       addMessage(data.message, "bot");
+      if (data.leadCaptured && data.leadData) {
+        addLeadCard(data.leadData);
+      }
     } catch {
       hideTyping();
       addMessage("Hubo un error, intentá de nuevo.", "bot");

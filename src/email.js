@@ -2,6 +2,14 @@ import { Resend } from "resend";
 
 const DASHBOARD_URL = "https://inmobiliaria-assistantv2-production.up.railway.app/dashboard";
 
+function escHtml(str) {
+  return String(str ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 export async function sendLeadNotification({ clienteNombre, clienteEmail, lead }) {
   if (!process.env.RESEND_API_KEY) {
     console.log("⚠️  RESEND_API_KEY no configurado — email omitido");
@@ -22,8 +30,8 @@ export async function sendLeadNotification({ clienteNombre, clienteEmail, lead }
   const rowsHtml = rows.map((r, i) => `
     <tr>
       <td style="padding:12px 16px;${i < rows.length - 1 ? "border-bottom:1px solid #E4E4E7;" : ""}">
-        <span style="display:block;font-size:11px;font-weight:600;color:#A1A1AA;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">${r.label}</span>
-        <span style="font-size:14px;font-weight:500;color:#09090B;">${r.value}</span>
+        <span style="display:block;font-size:11px;font-weight:600;color:#A1A1AA;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">${escHtml(r.label)}</span>
+        <span style="font-size:14px;font-weight:500;color:#09090B;">${escHtml(r.value)}</span>
       </td>
     </tr>`).join("");
 

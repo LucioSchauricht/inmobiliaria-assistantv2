@@ -4,6 +4,7 @@ import { buildSystemPrompt } from "./prompt.js";
 import { getCliente } from "./clientes.js";
 
 const MOCK_MODE = !process.env.ANTHROPIC_API_KEY;
+const client = MOCK_MODE ? null : new Anthropic();
 
 if (MOCK_MODE) {
   console.log("⚠️  Modo simulado activo — sin API key. Las respuestas son ficticias.");
@@ -41,9 +42,13 @@ function extractLeadData(text) {
   if (!match) return null;
 
   const data = {};
-  match[1].split(",").forEach((pair) => {
-    const [key, value] = pair.split("=");
-    if (key && value) data[key.trim()] = value.trim();
+  // Split only at commas immediately followed by a key= pattern,
+  // so commas inside values (e.g. resumen) are preserved.
+  match[1].split(/,(?=\w+=)/).forEach((pair) => {
+    const eqIdx = pair.indexOf("=");
+    if (eqIdx > 0) {
+      data[pair.slice(0, eqIdx).trim()] = pair.slice(eqIdx + 1).trim();
+    }
   });
   return data;
 }
@@ -57,6 +62,9 @@ export async function chatHandler(req, res) {
 
   if (!sessionId || !message) {
     return res.status(400).json({ error: "sessionId y message son requeridos" });
+  }
+  if (message.length > 1000) {
+    return res.status(400).json({ error: "Mensaje demasiado largo (máx. 1000 caracteres)" });
   }
 
   // Cargar configuración del cliente por token
@@ -76,7 +84,6 @@ export async function chatHandler(req, res) {
       await new Promise((r) => setTimeout(r, 600));
       rawText = getMockResponse(message, cliente);
     } else {
-      const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
       const response = await client.messages.create({
         model: "claude-sonnet-4-5",
         max_tokens: 500,
@@ -101,6 +108,7 @@ rawText = response.content[0]?.text || "Error al leer respuesta";
     res.json({
       message: cleanText,
       leadCaptured: !!leadData,
+      leadData: leadData || null,
       mock: MOCK_MODE,
     });
   } catch (error) {

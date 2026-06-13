@@ -8,7 +8,8 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY
 
 leadsRouter.get("/", async (req, res) => {
   const { token } = req.query;
-  const leads = await db.getAllLeads(token || null);
+  if (!token) return res.status(400).json({ error: "token es requerido" });
+  const leads = await db.getAllLeads(token);
   res.json({ total: leads.length, leads });
 });
 

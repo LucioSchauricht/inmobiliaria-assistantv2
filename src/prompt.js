@@ -2,7 +2,7 @@
 // Se genera dinámicamente con la configuración de cada cliente
 
 export function buildSystemPrompt(cliente) {
-  const propiedadesLista = cliente.propiedades
+  const propiedadesLista = (cliente.propiedades || [])
     .map((p) => `- ${p}`)
     .join("\n");
 

@@ -1,22 +1,28 @@
 {
   "name": "inmobiliaria-assistant",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "version": "1.1.0",
+  "description": "Asistente conversacional con IA para captura de leads en inmobiliarias. Widget embebible, panel de administración y dashboard de leads.",
+  "main": "src/server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node src/server.js",
-    "dev": "node --watch src/server.js"
+    "dev": "node --watch src/server.js",
+    "audit:deps": "npm audit --audit-level=moderate",
+    "audit:full": "npm audit",
+    "test": "echo \"Sin tests automáticos por ahora — ver README para tests manuales\" && exit 0"
   },
-  "keywords": [],
+  "keywords": ["inmobiliaria", "chatbot", "leads", "ia", "anthropic", "express"],
   "author": "",
   "license": "ISC",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.98.0",
     "@supabase/supabase-js": "^2.106.2",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.5.2",
     "resend": "^6.12.4",
     "uuid": "^14.0.0"
   },

@@ -6,7 +6,27 @@ const supabase = createClient(
   process.env.SUPABASE_KEY
 );
 
+/**
+ * Almacenamiento en memoria de sesiones activas.
+ * ⚠️  LIMITACIÓN: los datos se pierden al reiniciar el proceso.
+ *    Para producción con múltiples instancias o reinicio frecuente,
+ *    migrar a Redis o una tabla "sesiones" en Supabase.
+ * @type {Map<string, {messages: Array, leadData: Object, createdAt: Date}>}
+ */
 const sessions = new Map();
+
+// Limpiar sesiones antiguas cada hora (evitar memory leak en procesos de larga duración)
+setInterval(() => {
+  const cutoff = Date.now() - 2 * 60 * 60 * 1000; // 2 horas
+  let removed = 0;
+  for (const [id, session] of sessions) {
+    if (session.createdAt.getTime() < cutoff) {
+      sessions.delete(id);
+      removed++;
+    }
+  }
+  if (removed > 0) console.log(`[SESSION GC] ${removed} sesiones expiradas eliminadas de memoria`);
+}, 60 * 60 * 1000);
 
 export const db = {
   getSession(sessionId) {
@@ -70,15 +90,14 @@ export const db = {
     }
   },
 
-  async getAllLeads(token = null) {
-    let query = supabase
+  async getAllLeads(token) {
+    if (!token) return [];
+
+    const { data, error } = await supabase
       .from("leads")
       .select("*")
+      .eq("token", token)
       .order("created_at", { ascending: false });
-
-    if (token) query = query.eq("token", token);
-
-    const { data, error } = await query;
 
     if (error) {
       console.error("❌ Error leyendo leads de Supabase:", error.message);

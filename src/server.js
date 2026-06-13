@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from "uuid";
 import { readFileSync } from "fs";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
+import rateLimit from "express-rate-limit";
 import { chatHandler } from "./chat.js";
 import { leadsRouter } from "./leads.js";
 import { getCliente } from "./clientes.js";
@@ -14,8 +15,77 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(cors());
-app.use(express.json());
+const chatLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Demasiadas solicitudes, intentá en un momento" },
+});
+
+const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(",").map((o) => o.trim())
+  : [];
+
+app.use(
+  cors({
+    origin(origin, cb) {
+      // Allow same-origin requests (no Origin header) and explicitly listed origins.
+      if (!origin || ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
+      cb(new Error("Not allowed by CORS"));
+    },
+    credentials: true,
+  })
+);
+app.use(express.json({ limit: "10kb" }));
+
+// ── Security headers ────────────────────────────────────────
+app.use((req, res, next) => {
+  // Prevent MIME sniffing
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  // Deny iframe embedding from foreign origins
+  res.setHeader("X-Frame-Options", "SAMEORIGIN");
+  // Limit referrer information leakage
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  // Disable browser features not needed
+  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  // Content-Security-Policy
+  res.setHeader(
+    "Content-Security-Policy",
+    [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline'",   // unsafe-inline requerido por los HTML inline de admin/dashboard
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data:",
+      "font-src 'self'",
+      "connect-src 'self'",
+      "frame-ancestors 'self'",
+      "base-uri 'self'",
+      "form-action 'self'",
+    ].join("; ")
+  );
+  // Remove fingerprinting header
+  res.removeHeader("X-Powered-By");
+  next();
+});
+
+// ── Request timing / basic performance logging ───────────────
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on("finish", () => {
+    const ms = Date.now() - start;
+    const level = res.statusCode >= 500 ? "ERROR" : res.statusCode >= 400 ? "WARN" : "INFO";
+    // Only log non-static, non-health-check requests
+    if (req.path !== "/" && req.path !== "/favicon.ico") {
+      console.log(`[${level}] ${req.method} ${req.path} → ${res.statusCode} (${ms}ms)`);
+    }
+    // Warn on slow responses (>2s)
+    if (ms > 2000) {
+      console.warn(`[PERF] Respuesta lenta: ${req.method} ${req.path} tardó ${ms}ms`);
+    }
+  });
+  next();
+});
 
 // Health check
 app.get("/", (req, res) => {
@@ -28,6 +98,12 @@ app.get("/widget.js", (req, res) => {
   res.setHeader("Content-Type", "application/javascript");
   res.send(code);
 });
+
+function escHtml(str) {
+  return String(str).replace(/[&<>"']/g, c =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])
+  );
+}
 
 // Página de prueba para ver el widget en el navegador
 app.get("/demo", (req, res) => {
@@ -75,11 +151,11 @@ app.get("/demo", (req, res) => {
     <p>Esta es una página de prueba del widget de chat para inmobiliarias.</p>
     <div class="token-row">
       <span class="token-label">Token</span>
-      <span class="token-value">${token}</span>
+      <span class="token-value">${escHtml(token)}</span>
     </div>
     <p class="hint">El widget aparece en la esquina inferior derecha.</p>
   </div>
-  <script src="/widget.js?token=${token}"></script>
+  <script src="/widget.js?token=${encodeURIComponent(token)}"></script>
 </body>
 </html>`);
 });
@@ -114,7 +190,7 @@ app.get("/cliente-config", async (req, res) => {
 app.use("/admin", adminRouter);
 
 // Chat
-app.post("/chat", chatHandler);
+app.post("/chat", chatLimiter, chatHandler);
 
 // Leads
 app.use("/leads", leadsRouter);
@@ -124,8 +200,54 @@ app.post("/session", (req, res) => {
   res.json({ sessionId: uuidv4() });
 });
 
-app.listen(PORT, () => {
-  console.log(`✅ Servidor corriendo en http://localhost:${PORT}`);
-  console.log(`🎯 Demo widget: http://localhost:${PORT}/demo`);
-  console.log(`🎯 Demo cliente A: http://localhost:${PORT}/demo?token=TOKEN-CLIENTE-A`);
+// ── 404 handler ──────────────────────────────────────────────
+app.use((req, res) => {
+  res.status(404).json({ error: "Ruta no encontrada" });
 });
+
+// ── Global error handler ─────────────────────────────────────
+app.use((err, req, res, _next) => {
+  // CORS errors
+  if (err.message === "Not allowed by CORS") {
+    return res.status(403).json({ error: "Origen no permitido" });
+  }
+  console.error("[ERROR]", err.message);
+  res.status(500).json({ error: "Error interno del servidor" });
+});
+
+// ── Startup checks ───────────────────────────────────────────
+const REQUIRED_ENV = ["SUPABASE_URL", "SUPABASE_KEY", "ADMIN_PASSWORD", "ADMIN_SECRET"];
+const missing = REQUIRED_ENV.filter((k) => !process.env[k]);
+if (missing.length) {
+  console.error(`❌ Variables de entorno faltantes: ${missing.join(", ")}`);
+  process.exit(1);
+}
+if (!process.env.ANTHROPIC_API_KEY) {
+  console.warn("⚠️  ANTHROPIC_API_KEY no configurado — modo simulado activo");
+}
+if (!process.env.RESEND_API_KEY) {
+  console.warn("⚠️  RESEND_API_KEY no configurado — emails de notificación deshabilitados");
+}
+
+const server = app.listen(PORT, () => {
+  console.log(`✅ Servidor corriendo en http://localhost:${PORT}`);
+  console.log(`🔒 Admin panel:  http://localhost:${PORT}/admin`);
+  console.log(`📊 Dashboard:    http://localhost:${PORT}/dashboard`);
+  console.log(`🎯 Demo widget:  http://localhost:${PORT}/demo`);
+});
+
+// ── Graceful shutdown ────────────────────────────────────────
+function shutdown(signal) {
+  console.log(`\n[${signal}] Cerrando servidor...`);
+  server.close(() => {
+    console.log("✅ Servidor cerrado correctamente.");
+    process.exit(0);
+  });
+  // Force exit after 10s if connections hang
+  setTimeout(() => {
+    console.error("❌ Cierre forzado tras timeout.");
+    process.exit(1);
+  }, 10_000);
+}
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT",  () => shutdown("SIGINT"));

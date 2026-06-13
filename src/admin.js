@@ -1,16 +1,36 @@
 import { Router } from "express";
 import { createHmac, randomUUID } from "crypto";
+
+const CSS_COLOR_RE = /^#[0-9A-Fa-f]{3}(?:[0-9A-Fa-f]{3})?$/;
+function isValidColor(c) {
+  return typeof c === "string" && CSS_COLOR_RE.test(c);
+}
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 import { createClient } from "@supabase/supabase-js";
+import rateLimit from "express-rate-limit";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 export const adminRouter = Router();
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
+const HMAC_SECRET = process.env.ADMIN_SECRET;
+if (!HMAC_SECRET) {
+  console.error("❌ FATAL: ADMIN_SECRET no está configurado. El servidor no puede iniciar de forma segura.");
+  process.exit(1);
+}
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Demasiados intentos, esperá 15 minutos" },
+});
+
 function makeSessionToken(pass) {
-  return createHmac("sha256", "admin-session-v1").update(pass).digest("hex");
+  return createHmac("sha256", HMAC_SECRET).update(pass).digest("hex");
 }
 
 function parseCookies(req) {
@@ -35,7 +55,7 @@ adminRouter.get("/", (req, res) => {
 });
 
 // ── Auth ────────────────────────────────────────────────────
-adminRouter.post("/api/login", (req, res) => {
+adminRouter.post("/api/login", loginLimiter, (req, res) => {
   const { password } = req.body;
   const pass = process.env.ADMIN_PASSWORD;
   if (!pass) return res.status(500).json({ error: "ADMIN_PASSWORD no configurado" });
@@ -50,7 +70,8 @@ adminRouter.post("/api/login", (req, res) => {
 });
 
 adminRouter.post("/api/logout", (req, res) => {
-  res.setHeader("Set-Cookie", "admin_tok=; HttpOnly; Path=/admin; Max-Age=0");
+  const secureFlag = process.env.NODE_ENV === "production" ? "; Secure" : "";
+  res.setHeader("Set-Cookie", `admin_tok=; HttpOnly; SameSite=Strict; Path=/admin; Max-Age=0${secureFlag}`);
   res.json({ ok: true });
 });
 
@@ -91,8 +112,8 @@ adminRouter.post("/api/clientes", requireAdmin, async (req, res) => {
     horario,
     propiedades: Array.isArray(propiedades) ? propiedades.filter(Boolean) : [],
     email_contacto: email_contacto || null,
-    color_primario:   color_primario   || "#18181B",
-    color_secundario: color_secundario || "#2563EB",
+    color_primario:   isValidColor(color_primario)   ? color_primario   : "#18181B",
+    color_secundario: isValidColor(color_secundario) ? color_secundario : "#2563EB",
   });
 
   if (error) return res.status(500).json({ error: error.message });
@@ -113,8 +134,8 @@ adminRouter.patch("/api/clientes/:token", requireAdmin, async (req, res) => {
       horario,
       propiedades: Array.isArray(propiedades) ? propiedades.filter(Boolean) : [],
       email_contacto:   email_contacto   || null,
-      color_primario:   color_primario   || "#18181B",
-      color_secundario: color_secundario || "#2563EB",
+      color_primario:   isValidColor(color_primario)   ? color_primario   : "#18181B",
+      color_secundario: isValidColor(color_secundario) ? color_secundario : "#2563EB",
     })
     .eq("token", req.params.token);
   if (error) return res.status(500).json({ error: error.message });
