@@ -30,7 +30,9 @@ const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
 app.use(
   cors({
     origin(origin, cb) {
-      // Allow same-origin requests (no Origin header) and explicitly listed origins.
+      // No list configured → allow all (open/dev mode).
+      if (ALLOWED_ORIGINS.length === 0) return cb(null, true);
+      // List configured → allow only matching origins (or no-origin server requests).
       if (!origin || ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
       cb(new Error("Not allowed by CORS"));
     },
