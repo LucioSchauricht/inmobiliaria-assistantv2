@@ -1,7 +1,7 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
-import { v4 as uuidv4 } from "uuid";
+import { randomUUID } from "crypto";
 import { readFileSync } from "fs";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
@@ -13,6 +13,7 @@ import { adminRouter } from "./admin.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
+app.set("trust proxy", 1);
 const PORT = process.env.PORT || 3000;
 
 const chatLimiter = rateLimit({
@@ -199,7 +200,7 @@ app.use("/leads", leadsRouter);
 
 // Nueva sesión
 app.post("/session", (req, res) => {
-  res.json({ sessionId: uuidv4() });
+  res.json({ sessionId: randomUUID() });
 });
 
 // ── 404 handler ──────────────────────────────────────────────
