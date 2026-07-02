@@ -52,6 +52,36 @@
       border-color: #18181B; background: #fff;
       box-shadow: 0 0 0 3px rgba(24,24,27,.08);
     }
+
+    select {
+      width: 100%; padding: 9px 12px;
+      border: 1px solid #E4E4E7; border-radius: 7px;
+      font-size: .875rem; color: #09090B; background: #FAFAFA;
+      outline: none; transition: border-color .15s, box-shadow .15s;
+      cursor: pointer; appearance: none; -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2371717A' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 36px;
+    }
+    select:focus {
+      border-color: #18181B; background-color: #fff;
+      box-shadow: 0 0 0 3px rgba(24,24,27,.08);
+    }
+
+    textarea {
+      width: 100%; padding: 9px 12px;
+      border: 1px solid #E4E4E7; border-radius: 7px;
+      font-size: .875rem; color: #09090B; background: #FAFAFA;
+      outline: none; transition: border-color .15s, box-shadow .15s;
+      resize: vertical; font-family: inherit; line-height: 1.5;
+      min-height: 100px;
+    }
+    textarea:focus {
+      border-color: #18181B; background: #fff;
+      box-shadow: 0 0 0 3px rgba(24,24,27,.08);
+    }
+
     .btn-primary {
       width: 100%; padding: 9px 16px;
       background: #18181B; color: #fff; border: none;
@@ -153,6 +183,14 @@
       font-size: .8rem; font-weight: 500;
     }
 
+    /* Rubro badges */
+    .rubro-badge {
+      display: inline-block; border-radius: 4px; padding: 2px 8px;
+      font-size: .78rem; font-weight: 500; white-space: nowrap;
+    }
+    .rubro-inmobiliaria { background: #F4F4F5; color: #3F3F46; border: 1px solid #E4E4E7; }
+    .rubro-concesionaria { background: #EFF6FF; color: #1D4ED8; border: 1px solid #BFDBFE; }
+
     .actions-cell { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
     .btn-edit {
       background: none; border: 1px solid #E4E4E7;
@@ -210,9 +248,10 @@
     .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
     .f-field { display: flex; flex-direction: column; gap: 5px; }
     .f-field label { font-size: .8125rem; font-weight: 500; color: #3F3F46; }
-    .f-field input { margin: 0; }
+    .f-field input, .f-field select { margin: 0; }
 
     .section-label { font-size: .8125rem; font-weight: 500; color: #3F3F46; margin-bottom: 8px; margin-top: 4px; }
+    .section-hint { font-size: .75rem; color: #A1A1AA; margin-top: 4px; }
 
     .props-list { display: flex; flex-direction: column; gap: 7px; margin-bottom: 7px; }
     .prop-row { display: flex; gap: 7px; align-items: center; }
@@ -232,6 +271,20 @@
       cursor: pointer; transition: all .12s;
     }
     .btn-add-prop:hover { border-color: #18181B; color: #18181B; background: #F4F4F5; }
+
+    /* Checkbox */
+    .checkbox-row {
+      display: flex; align-items: center; gap: 9px;
+      padding: 10px 12px; border: 1px solid #E4E4E7;
+      border-radius: 7px; cursor: pointer; transition: background .12s;
+      margin-top: 10px;
+    }
+    .checkbox-row:hover { background: #FAFAFA; }
+    .checkbox-row input[type="checkbox"] {
+      width: 16px; height: 16px; cursor: pointer; flex-shrink: 0;
+      accent-color: #18181B;
+    }
+    .checkbox-row span { font-size: .875rem; color: #3F3F46; }
 
     .color-field { display: flex; align-items: center; gap: 8px; }
     input[type="color"] {
@@ -261,6 +314,9 @@
     .btn-submit:disabled { opacity: .4; cursor: not-allowed; }
     .form-error { color: #DC2626; font-size: .8125rem; text-align: center; margin-top: 10px; display: none; }
 
+    /* Divider */
+    .form-divider { border: none; border-top: 1px solid #F4F4F5; margin: 16px 0; }
+
     /* Success view */
     .success-view { text-align: center; }
     .success-check {
@@ -288,7 +344,7 @@
       .main { padding: 20px 16px; }
       .form-grid { grid-template-columns: 1fr; }
       thead th:nth-child(3), tbody td:nth-child(3),
-      thead th:nth-child(5), tbody td:nth-child(5) { display: none; }
+      thead th:nth-child(6), tbody td:nth-child(6) { display: none; }
     }
   </style>
 </head>
@@ -324,7 +380,7 @@
 
   <div class="main">
     <div class="page-title">Clientes</div>
-    <div class="page-subtitle">Inmobiliarias con el widget de chat activo.</div>
+    <div class="page-subtitle">Inmobiliarias y concesionarias con el widget de chat activo.</div>
 
     <div class="stats-row">
       <div class="stat-card">
@@ -334,6 +390,10 @@
       <div class="stat-card">
         <div class="s-label">Leads totales</div>
         <div class="s-value" id="stat-leads">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="s-label">Concesionarias</div>
+        <div class="s-value" id="stat-concesionarias">—</div>
       </div>
     </div>
 
@@ -348,6 +408,7 @@
           <tr>
             <th>Nombre</th>
             <th>Ciudad</th>
+            <th>Rubro</th>
             <th>Token</th>
             <th>Leads</th>
             <th>Alta</th>
@@ -378,10 +439,11 @@
         <div class="tr-value" id="modal-token-val">—</div>
       </div>
 
+      <!-- Datos básicos -->
       <div class="form-grid">
         <div class="f-field">
-          <label>Nombre de la inmobiliaria *</label>
-          <input type="text" id="f-nombre" placeholder="Inmobiliaria XYZ">
+          <label>Nombre *</label>
+          <input type="text" id="f-nombre" placeholder="Inmobiliaria XYZ / AutoMax">
         </div>
         <div class="f-field">
           <label>Ciudad *</label>
@@ -396,12 +458,26 @@
           <input type="text" id="f-horario" placeholder="Lunes a viernes 9:00–18:00">
         </div>
       </div>
+
+      <!-- Email -->
       <div class="f-field" style="margin-bottom:16px;">
         <label>Email de notificaciones</label>
-        <input type="text" id="f-email" placeholder="contacto@inmobiliaria.com">
-        <span style="display:block;font-size:.75rem;color:#A1A1AA;margin-top:4px;">Recibirá un email cada vez que se capture un lead nuevo.</span>
+        <input type="text" id="f-email" placeholder="contacto@empresa.com">
+        <span class="section-hint">Recibirá un email cada vez que se capture un lead nuevo.</span>
       </div>
 
+      <!-- Rubro -->
+      <div class="f-field" style="margin-bottom:16px;">
+        <label>Rubro *</label>
+        <select id="f-rubro" onchange="onRubroChange()">
+          <option value="inmobiliaria">Inmobiliaria</option>
+          <option value="concesionaria">Concesionaria de autos</option>
+        </select>
+      </div>
+
+      <hr class="form-divider">
+
+      <!-- Colores -->
       <div class="form-grid" style="margin-bottom:16px;">
         <div class="f-field">
           <label>Color principal del widget</label>
@@ -419,9 +495,26 @@
         </div>
       </div>
 
-      <div class="section-label">Propiedades disponibles</div>
-      <div class="props-list" id="props-list"></div>
-      <button class="btn-add-prop" onclick="addProp()">+ Agregar propiedad</button>
+      <hr class="form-divider">
+
+      <!-- SECCIÓN INMOBILIARIA: propiedades -->
+      <div id="section-propiedades">
+        <div class="section-label">Propiedades disponibles</div>
+        <div class="props-list" id="props-list"></div>
+        <button class="btn-add-prop" onclick="addProp()">+ Agregar propiedad</button>
+      </div>
+
+      <!-- SECCIÓN CONCESIONARIA: vehículos + financiación -->
+      <div id="section-concesionaria" style="display:none">
+        <div class="section-label">Vehículos disponibles</div>
+        <span class="section-hint" style="display:block;margin-bottom:8px;">Uno por línea. Ej: Toyota Corolla 2022 – 45.000km – U$S 18.500</span>
+        <textarea id="f-vehiculos" rows="5" placeholder="Toyota Corolla 2022 – 45.000km – U$S 18.500&#10;Ford Ranger XLS 2021 – 90.000km – U$S 22.000&#10;VW Polo 2023 – 12.000km – U$S 15.900"></textarea>
+        <label class="checkbox-row" style="margin-top:12px;">
+          <input type="checkbox" id="f-financiacion">
+          <span>Financiación disponible</span>
+        </label>
+      </div>
+
       <div class="modal-actions">
         <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
         <button class="btn-submit" id="submit-btn" onclick="submitCliente()">Crear cliente</button>
@@ -502,17 +595,23 @@
     const tbody   = document.getElementById("tbody");
     const emptyEl = document.getElementById("empty-state");
     const totalLeads = clientes.reduce((s, c) => s + c.lead_count, 0);
-    document.getElementById("stat-clientes").textContent = clientes.length;
-    document.getElementById("stat-leads").textContent    = totalLeads;
+    const totalConc  = clientes.filter((c) => c.rubro === "concesionaria").length;
+    document.getElementById("stat-clientes").textContent       = clientes.length;
+    document.getElementById("stat-leads").textContent          = totalLeads;
+    document.getElementById("stat-concesionarias").textContent = totalConc;
     tbody.innerHTML = "";
     if (clientes.length === 0) { emptyEl.style.display = "block"; return; }
     emptyEl.style.display = "none";
     clientes.forEach((c) => {
+      const rubro = c.rubro || "inmobiliaria";
+      const rubroLabel = rubro === "concesionaria" ? "Concesionaria" : "Inmobiliaria";
+      const rubroCls   = rubro === "concesionaria" ? "rubro-concesionaria" : "rubro-inmobiliaria";
       const tr = document.createElement("tr");
       tr.id = "row-" + c.token;
       tr.innerHTML = `
         <td><strong style="font-weight:500">${esc(c.nombre)}</strong></td>
         <td style="color:#52525B">${esc(c.ciudad)}</td>
+        <td><span class="rubro-badge ${rubroCls}">${rubroLabel}</span></td>
         <td>
           <div class="token-cell">
             <span class="token-text">${esc(c.token)}</span>
@@ -552,9 +651,19 @@
     if (!res.ok) return;
     document.getElementById("row-" + token)?.remove();
     clientes = clientes.filter((c) => c.token !== token);
-    document.getElementById("stat-clientes").textContent = clientes.length;
-    document.getElementById("stat-leads").textContent = clientes.reduce((s, c) => s + c.lead_count, 0);
+    const totalConc = clientes.filter((c) => c.rubro === "concesionaria").length;
+    document.getElementById("stat-clientes").textContent       = clientes.length;
+    document.getElementById("stat-leads").textContent          = clientes.reduce((s, c) => s + c.lead_count, 0);
+    document.getElementById("stat-concesionarias").textContent = totalConc;
     if (clientes.length === 0) document.getElementById("empty-state").style.display = "block";
+  }
+
+  // ── Rubro toggle ──────────────────────────────────────────
+  function onRubroChange() {
+    const rubro = document.getElementById("f-rubro").value;
+    const isConc = rubro === "concesionaria";
+    document.getElementById("section-propiedades").style.display  = isConc ? "none" : "block";
+    document.getElementById("section-concesionaria").style.display = isConc ? "block" : "none";
   }
 
   // ── Modal ─────────────────────────────────────────────────
@@ -587,11 +696,22 @@
     document.getElementById("f-color-accent").value      = ca;
     document.getElementById("f-color-accent-hex").value  = ca;
 
+    // Rubro
+    const rubro = cliente?.rubro || "inmobiliaria";
+    document.getElementById("f-rubro").value = rubro;
+    onRubroChange(); // show/hide sections
+
+    // Propiedades (inmobiliaria)
     const propsList = document.getElementById("props-list");
     propsList.innerHTML = "";
     const props = cliente?.propiedades || [];
     if (props.length > 0) props.forEach((p) => addProp(p));
     else addProp();
+
+    // Vehículos (concesionaria)
+    const vehiculos = cliente?.vehiculos || [];
+    document.getElementById("f-vehiculos").value = vehiculos.join("\n");
+    document.getElementById("f-financiacion").checked = cliente?.financiacion_disponible || false;
 
     document.getElementById("submit-btn").textContent = cliente ? "Guardar cambios" : "Crear cliente";
   }
@@ -630,8 +750,7 @@
     const email_contacto  = document.getElementById("f-email").value.trim();
     const color_primario   = document.getElementById("f-color-primary").value;
     const color_secundario = document.getElementById("f-color-accent").value;
-    const propiedades     = Array.from(document.querySelectorAll("#props-list input"))
-      .map((el) => el.value.trim()).filter(Boolean);
+    const rubro           = document.getElementById("f-rubro").value;
 
     const errEl = document.getElementById("form-error");
     errEl.style.display = "none";
@@ -639,6 +758,22 @@
     if (!nombre || !ciudad || !telefono || !horario) {
       errEl.textContent = "Completá todos los campos obligatorios.";
       errEl.style.display = "block"; return;
+    }
+
+    // Build payload por rubro
+    let inventario = {};
+    if (rubro === "concesionaria") {
+      const vehiculosRaw = document.getElementById("f-vehiculos").value;
+      const vehiculos = vehiculosRaw
+        .split("\n")
+        .map((v) => v.trim())
+        .filter(Boolean);
+      const financiacion_disponible = document.getElementById("f-financiacion").checked;
+      inventario = { vehiculos, financiacion_disponible };
+    } else {
+      const propiedades = Array.from(document.querySelectorAll("#props-list input"))
+        .map((el) => el.value.trim()).filter(Boolean);
+      inventario = { propiedades };
     }
 
     const btn = document.getElementById("submit-btn");
@@ -652,7 +787,11 @@
       const method = editingToken ? "PATCH" : "POST";
       const res    = await fetch(url, {
         method, headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nombre, ciudad, telefono, horario, propiedades, email_contacto, color_primario, color_secundario }),
+        body: JSON.stringify({
+          nombre, ciudad, telefono, horario, email_contacto,
+          color_primario, color_secundario, rubro,
+          ...inventario,
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
