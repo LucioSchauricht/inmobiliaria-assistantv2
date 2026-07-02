@@ -1,26 +1,18 @@
+// src/db.js — sesiones en memoria + Supabase
+// Cambios v1.2: campos de lead para concesionarias (vehiculo_interes, permuta,
+// financiacion_solicitada). Backward compatible: para inmobiliarias esos campos
+// simplemente quedan en null.
 import { sendLeadNotification } from "./email.js";
 import { supabase } from "./supabase.js";
 
-/**
- * Almacenamiento en memoria de sesiones activas.
- * ⚠️  LIMITACIÓN: los datos se pierden al reiniciar el proceso.
- *    Para producción con múltiples instancias o reinicio frecuente,
- *    migrar a Redis o una tabla "sesiones" en Supabase.
- * @type {Map<string, {messages: Array, leadData: Object, createdAt: Date}>}
- */
 const sessions = new Map();
 
-// Limpiar sesiones antiguas cada hora (evitar memory leak en procesos de larga duración)
+// Limpieza cada hora
 setInterval(() => {
-  const cutoff = Date.now() - 2 * 60 * 60 * 1000; // 2 horas
-  let removed = 0;
+  const cutoff = Date.now() - 2 * 60 * 60 * 1000;
   for (const [id, session] of sessions) {
-    if (session.createdAt.getTime() < cutoff) {
-      sessions.delete(id);
-      removed++;
-    }
+    if (session.createdAt.getTime() < cutoff) sessions.delete(id);
   }
-  if (removed > 0) console.log(`[SESSION GC] ${removed} sesiones expiradas eliminadas de memoria`);
 }, 60 * 60 * 1000);
 
 export const db = {
@@ -28,7 +20,18 @@ export const db = {
     if (!sessions.has(sessionId)) {
       sessions.set(sessionId, {
         messages: [],
-        leadData: { nombre: null, telefono: null, email: null, horario: null, resumen: null, emailSent: false },
+        leadData: {
+          nombre: null,
+          telefono: null,
+          email: null,
+          horario: null,
+          resumen: null,
+          // Campos de concesionaria (null para inmobiliarias)
+          vehiculo_interes: null,
+          permuta: null,
+          financiacion_solicitada: null,
+          emailSent: false,
+        },
         createdAt: new Date(),
       });
     }
@@ -38,9 +41,12 @@ export const db = {
   addMessage(sessionId, role, content) {
     const session = this.getSession(sessionId);
     session.messages.push({ role, content });
-    supabase.from("conversaciones")
+    supabase
+      .from("conversaciones")
       .insert({ session_id: sessionId, role, content })
-      .then(({ error }) => { if (error) console.error("❌ Error guardando mensaje:", error.message); });
+      .then(({ error }) => {
+        if (error) console.error("Error guardando mensaje:", error.message);
+      });
   },
 
   getMessages(sessionId) {
@@ -49,12 +55,29 @@ export const db = {
 
   async updateLead(sessionId, data, token = "DEMO-TOKEN-001", clienteInfo = null) {
     const session = this.getSession(sessionId);
-    session.leadData = { ...session.leadData, ...data };
+    // Merge sin pisar datos previos con null/undefined (el modelo puede omitir
+    // campos ya capturados en turnos anteriores).
+    for (const [key, value] of Object.entries(data)) {
+      if (value !== null && value !== undefined && value !== "") {
+        session.leadData[key] = value;
+      }
+    }
 
-    const { nombre, telefono, email, horario, resumen, emailSent } = session.leadData;
+    const {
+      nombre,
+      telefono,
+      email,
+      horario,
+      resumen,
+      vehiculo_interes,
+      permuta,
+      financiacion_solicitada,
+      emailSent,
+    } = session.leadData;
+
     if (!nombre || !telefono) return;
 
-    const { error } = await supabase.from("leads").upsert(
+    await supabase.from("leads").upsert(
       {
         session_id: sessionId,
         token,
@@ -63,42 +86,44 @@ export const db = {
         email: email || null,
         horario: horario || null,
         resumen: resumen || null,
+        vehiculo_interes: vehiculo_interes || null,
+        permuta: typeof permuta === "boolean" ? permuta : null,
+        financiacion_solicitada:
+          typeof financiacion_solicitada === "boolean" ? financiacion_solicitada : null,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "session_id" }
     );
-
-    if (error) {
-      console.error("❌ Error guardando lead en Supabase:", error.message);
-      return;
-    }
-
-    console.log(`📋 Lead guardado [${token}]`);
 
     if (!emailSent && clienteInfo?.email_contacto) {
       session.leadData.emailSent = true;
       await sendLeadNotification({
         clienteNombre: clienteInfo.nombre,
         clienteEmail: clienteInfo.email_contacto,
-        lead: { nombre, telefono, horario, resumen },
+        rubro: clienteInfo.rubro || "inmobiliaria",
+        lead: {
+          nombre,
+          telefono,
+          horario,
+          resumen,
+          // Extras de concesionaria: el template de email puede ignorarlos
+          // (inmobiliaria) o renderizarlos (concesionaria).
+          vehiculo_interes,
+          permuta,
+          financiacion_solicitada,
+        },
       });
     }
   },
 
   async getAllLeads(token) {
     if (!token) return [];
-
     const { data, error } = await supabase
       .from("leads")
       .select("*")
       .eq("token", token)
       .order("created_at", { ascending: false });
-
-    if (error) {
-      console.error("❌ Error leyendo leads de Supabase:", error.message);
-      return [];
-    }
-
+    if (error) return [];
     return data.map((row) => ({
       id: row.id,
       sessionId: row.session_id,
@@ -108,6 +133,9 @@ export const db = {
       email: row.email,
       horario: row.horario,
       resumen: row.resumen,
+      vehiculoInteres: row.vehiculo_interes ?? null,
+      permuta: row.permuta ?? null,
+      financiacionSolicitada: row.financiacion_solicitada ?? null,
       contactado: row.contactado,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
