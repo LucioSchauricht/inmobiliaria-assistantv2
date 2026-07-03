@@ -339,6 +339,27 @@
     }
     .btn-copy-big:hover { background: #F4F4F5; }
 
+    /* ── Tabs ── */
+    .tabs-nav {
+      display: flex; gap: 2px; padding: 12px 20px 0;
+      border-bottom: 1px solid #E4E4E7; background: #fff;
+    }
+    .tab-btn {
+      padding: 8px 18px; font-size: .875rem; font-weight: 500;
+      background: none; border: none; border-radius: 6px 6px 0 0;
+      cursor: pointer; color: #71717A;
+      border-bottom: 2px solid transparent; margin-bottom: -1px;
+      transition: color .12s, border-color .12s;
+    }
+    .tab-btn:hover { color: #09090B; }
+    .tab-btn.active { color: #09090B; border-bottom-color: #18181B; }
+    .tab-count {
+      display: inline-block; background: #F4F4F5; color: #52525B;
+      border-radius: 4px; padding: 1px 6px; font-size: .72rem;
+      font-weight: 600; margin-left: 6px;
+    }
+    .tab-btn.active .tab-count { background: #18181B; color: #fff; }
+
     @media (max-width: 640px) {
       .topbar { padding: 0 16px; }
       .main { padding: 20px 16px; }
@@ -398,9 +419,17 @@
     </div>
 
     <div class="table-card">
+      <div class="tabs-nav">
+        <button class="tab-btn active" data-tab="inmobiliaria" onclick="switchTab('inmobiliaria')">
+          Inmobiliarias <span class="tab-count" id="tab-count-inmobiliaria">0</span>
+        </button>
+        <button class="tab-btn" data-tab="concesionaria" onclick="switchTab('concesionaria')">
+          Concesionarias <span class="tab-count" id="tab-count-concesionaria">0</span>
+        </button>
+      </div>
       <div class="table-header">
-        <h2>Clientes registrados</h2>
-        <button class="btn-add" onclick="openModal()">+ Agregar cliente</button>
+        <h2 id="tab-title">Inmobiliarias</h2>
+        <button class="btn-add" id="btn-add-tab" onclick="openModalForTab()">+ Nueva inmobiliaria</button>
       </div>
 
       <table>
@@ -408,7 +437,6 @@
           <tr>
             <th>Nombre</th>
             <th>Ciudad</th>
-            <th>Rubro</th>
             <th>Token</th>
             <th>Leads</th>
             <th>Alta</th>
@@ -421,7 +449,7 @@
         <div class="empty-icon">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
         </div>
-        <p>No hay clientes registrados.</p>
+        <p id="empty-msg">No hay inmobiliarias registradas.</p>
       </div>
     </div>
   </div>
@@ -542,6 +570,7 @@
 <script>
   let clientes = [];
   let editingToken = null;
+  let currentTab = "inmobiliaria";
 
   // ── Auth ──────────────────────────────────────────────────
   async function init() {
@@ -596,22 +625,26 @@
     const emptyEl = document.getElementById("empty-state");
     const totalLeads = clientes.reduce((s, c) => s + c.lead_count, 0);
     const totalConc  = clientes.filter((c) => c.rubro === "concesionaria").length;
+    const totalInmo  = clientes.filter((c) => (c.rubro || "inmobiliaria") === "inmobiliaria").length;
     document.getElementById("stat-clientes").textContent       = clientes.length;
     document.getElementById("stat-leads").textContent          = totalLeads;
     document.getElementById("stat-concesionarias").textContent = totalConc;
+    document.getElementById("tab-count-inmobiliaria").textContent = totalInmo;
+    document.getElementById("tab-count-concesionaria").textContent = totalConc;
+    const filtered = clientes.filter((c) => (c.rubro || "inmobiliaria") === currentTab);
     tbody.innerHTML = "";
-    if (clientes.length === 0) { emptyEl.style.display = "block"; return; }
+    if (filtered.length === 0) {
+      document.getElementById("empty-msg").textContent =
+        currentTab === "concesionaria" ? "No hay concesionarias registradas." : "No hay inmobiliarias registradas.";
+      emptyEl.style.display = "block"; return;
+    }
     emptyEl.style.display = "none";
-    clientes.forEach((c) => {
-      const rubro = c.rubro || "inmobiliaria";
-      const rubroLabel = rubro === "concesionaria" ? "Concesionaria" : "Inmobiliaria";
-      const rubroCls   = rubro === "concesionaria" ? "rubro-concesionaria" : "rubro-inmobiliaria";
+    filtered.forEach((c) => {
       const tr = document.createElement("tr");
       tr.id = "row-" + c.token;
       tr.innerHTML = `
         <td><strong style="font-weight:500">${esc(c.nombre)}</strong></td>
         <td style="color:#52525B">${esc(c.ciudad)}</td>
-        <td><span class="rubro-badge ${rubroCls}">${rubroLabel}</span></td>
         <td>
           <div class="token-cell">
             <span class="token-text">${esc(c.token)}</span>
@@ -651,11 +684,23 @@
     if (!res.ok) return;
     document.getElementById("row-" + token)?.remove();
     clientes = clientes.filter((c) => c.token !== token);
-    const totalConc = clientes.filter((c) => c.rubro === "concesionaria").length;
-    document.getElementById("stat-clientes").textContent       = clientes.length;
-    document.getElementById("stat-leads").textContent          = clientes.reduce((s, c) => s + c.lead_count, 0);
-    document.getElementById("stat-concesionarias").textContent = totalConc;
-    if (clientes.length === 0) document.getElementById("empty-state").style.display = "block";
+    renderTable();
+  }
+
+  // ── Tabs ──────────────────────────────────────────────────
+  function switchTab(rubro) {
+    currentTab = rubro;
+    document.querySelectorAll(".tab-btn").forEach((b) => {
+      b.classList.toggle("active", b.dataset.tab === rubro);
+    });
+    const isConc = rubro === "concesionaria";
+    document.getElementById("tab-title").textContent    = isConc ? "Concesionarias" : "Inmobiliarias";
+    document.getElementById("btn-add-tab").textContent  = isConc ? "+ Nueva concesionaria" : "+ Nueva inmobiliaria";
+    renderTable();
+  }
+
+  function openModalForTab() {
+    openModal(null, currentTab);
   }
 
   // ── Rubro toggle ──────────────────────────────────────────
@@ -667,14 +712,19 @@
   }
 
   // ── Modal ─────────────────────────────────────────────────
-  function openModal(cliente = null) {
+  function openModal(cliente = null, rubroPreset = null) {
     editingToken = cliente ? cliente.token : null;
     document.getElementById("modal").style.display        = "flex";
     document.getElementById("form-view").style.display    = "block";
     document.getElementById("success-view").style.display = "none";
     document.getElementById("form-error").style.display   = "none";
 
-    document.getElementById("modal-title").textContent = cliente ? "Editar cliente" : "Nuevo cliente";
+    const isNew = !cliente;
+    const rubroLabel = (rubroPreset || cliente?.rubro || "inmobiliaria") === "concesionaria" ? "concesionaria" : "inmobiliaria";
+    document.getElementById("modal-title").textContent = cliente
+      ? "Editar cliente"
+      : rubroLabel === "concesionaria" ? "Nueva concesionaria" : "Nueva inmobiliaria";
+
     const tokenRow = document.getElementById("modal-token-row");
     if (cliente) {
       document.getElementById("modal-token-val").textContent = cliente.token;
@@ -696,10 +746,12 @@
     document.getElementById("f-color-accent").value      = ca;
     document.getElementById("f-color-accent-hex").value  = ca;
 
-    // Rubro
-    const rubro = cliente?.rubro || "inmobiliaria";
+    // Rubro: al crear desde una tab, se pre-selecciona y se oculta el selector
+    const rubro = cliente?.rubro || rubroPreset || "inmobiliaria";
+    const rubroField = document.getElementById("f-rubro").closest(".f-field");
     document.getElementById("f-rubro").value = rubro;
-    onRubroChange(); // show/hide sections
+    rubroField.style.display = (isNew && rubroPreset) ? "none" : "";
+    onRubroChange();
 
     // Propiedades (inmobiliaria)
     const propsList = document.getElementById("props-list");
