@@ -78,7 +78,7 @@ ${financiacionInfo}
 Cuando el usuario mencione su nombre, teléfono o cualquier dato del lead, incluí al FINAL de tu mensaje UNA línea con este formato exacto, incluyendo solamente los campos que ya conozcas:
 [LEAD:nombre=Juan,telefono=099123456,horario=tarde,vehiculo=Toyota Corolla 2022,permuta=si,financiacion=no,resumen=Interesado en el Corolla 2022. Tiene un Gol 2015 para permutar]
 - Los campos permuta y financiacion solo aceptan los valores "si" o "no". Si todavía no lo sabés, no incluyas el campo.
-- En vehiculo poné el vehículo tal como figura en la lista (marca, modelo y año).
+- En vehiculo poné el vehículo que le interesó al usuario (aunque no esté en el stock actual).
 - Esta línea es interna: el usuario nunca la ve, no la menciones ni la expliques.`;
 }
 

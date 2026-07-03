@@ -10,7 +10,7 @@ function escHtml(str) {
     .replace(/"/g, "&quot;");
 }
 
-export async function sendLeadNotification({ clienteNombre, clienteEmail, lead }) {
+export async function sendLeadNotification({ clienteNombre, clienteEmail, rubro, lead }) {
   if (!process.env.RESEND_API_KEY) {
     console.log("⚠️  RESEND_API_KEY no configurado — email omitido");
     return;
@@ -20,11 +20,19 @@ export async function sendLeadNotification({ clienteNombre, clienteEmail, lead }
   const resend = new Resend(process.env.RESEND_API_KEY);
   const from = process.env.RESEND_FROM || "Asistente IA <notificaciones@resend.dev>";
 
+  const esConcesionaria = (rubro || "").toLowerCase() === "concesionaria";
+
   const rows = [
-    { label: "Nombre",           value: lead.nombre },
-    { label: "Teléfono",         value: lead.telefono },
-    ...(lead.horario ? [{ label: "Horario preferido", value: lead.horario }] : []),
-    ...(lead.resumen ? [{ label: "Qué busca",         value: lead.resumen }] : []),
+    { label: "Nombre",    value: lead.nombre },
+    { label: "Teléfono",  value: lead.telefono },
+    ...(lead.horario             ? [{ label: "Horario preferido",   value: lead.horario }] : []),
+    ...(esConcesionaria && lead.vehiculo_interes
+                                 ? [{ label: "Vehículo de interés", value: lead.vehiculo_interes }] : []),
+    ...(esConcesionaria && lead.permuta !== null && lead.permuta !== undefined
+                                 ? [{ label: "Permuta",             value: lead.permuta ? "Sí" : "No" }] : []),
+    ...(esConcesionaria && lead.financiacion_solicitada !== null && lead.financiacion_solicitada !== undefined
+                                 ? [{ label: "Financiación",        value: lead.financiacion_solicitada ? "Sí" : "No" }] : []),
+    ...(lead.resumen             ? [{ label: "Resumen",             value: lead.resumen }] : []),
   ];
 
   const rowsHtml = rows.map((r, i) => `
@@ -68,7 +76,7 @@ export async function sendLeadNotification({ clienteNombre, clienteEmail, lead }
         </td></tr>
 
         <tr><td style="padding:16px 28px;border-top:1px solid #E4E4E7;text-align:center;">
-          <p style="margin:0;font-size:12px;color:#A1A1AA;">Asistente IA Inmobiliaria &middot; Notificación automática</p>
+          <p style="margin:0;font-size:12px;color:#A1A1AA;">${esConcesionaria ? "Asistente IA Concesionaria" : "Asistente IA Inmobiliaria"} &middot; Notificación automática</p>
         </td></tr>
 
       </table>
