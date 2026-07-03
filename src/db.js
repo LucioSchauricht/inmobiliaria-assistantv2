@@ -1,13 +1,11 @@
-// src/db.js — sesiones en memoria + Supabase
-// Cambios v1.2: campos de lead para concesionarias (vehiculo_interes, permuta,
-// financiacion_solicitada). Backward compatible: para inmobiliarias esos campos
-// simplemente quedan en null.
 import { sendLeadNotification } from "./email.js";
 import { supabase } from "./supabase.js";
 
 const sessions = new Map();
 
-// Limpieza cada hora
+// Campos de concesionaria que disparan re-notificación cuando aparecen después del primer email
+const CONC_FIELDS = ["vehiculo_interes", "permuta", "financiacion_solicitada"];
+
 setInterval(() => {
   const cutoff = Date.now() - 2 * 60 * 60 * 1000;
   for (const [id, session] of sessions) {
@@ -26,11 +24,11 @@ export const db = {
           email: null,
           horario: null,
           resumen: null,
-          // Campos de concesionaria (null para inmobiliarias)
           vehiculo_interes: null,
           permuta: null,
           financiacion_solicitada: null,
-          emailSent: false,
+          // Set de campos ya notificados; vacío = nunca se envió email
+          notifiedFields: new Set(),
         },
         createdAt: new Date(),
       });
@@ -55,24 +53,24 @@ export const db = {
 
   async updateLead(sessionId, data, token = "DEMO-TOKEN-001", clienteInfo = null) {
     const session = this.getSession(sessionId);
-    // Merge sin pisar datos previos con null/undefined (el modelo puede omitir
-    // campos ya capturados en turnos anteriores).
+
     for (const [key, value] of Object.entries(data)) {
-      if (value !== null && value !== undefined && value !== "") {
-        session.leadData[key] = value;
+      if (value === null || value === undefined || value === "") continue;
+      // No pisar un resumen más largo con uno más corto
+      if (key === "resumen") {
+        const existing = session.leadData.resumen;
+        if (!existing || String(value).length > String(existing).length) {
+          session.leadData.resumen = value;
+        }
+        continue;
       }
+      session.leadData[key] = value;
     }
 
     const {
-      nombre,
-      telefono,
-      email,
-      horario,
-      resumen,
-      vehiculo_interes,
-      permuta,
-      financiacion_solicitada,
-      emailSent,
+      nombre, telefono, email, horario, resumen,
+      vehiculo_interes, permuta, financiacion_solicitada,
+      notifiedFields,
     } = session.leadData;
 
     if (!nombre || !telefono) return;
@@ -95,24 +93,24 @@ export const db = {
       { onConflict: "session_id" }
     );
 
-    if (!emailSent && clienteInfo?.email_contacto) {
-      session.leadData.emailSent = true;
-      await sendLeadNotification({
-        clienteNombre: clienteInfo.nombre,
-        clienteEmail: clienteInfo.email_contacto,
-        rubro: clienteInfo.rubro || "inmobiliaria",
-        lead: {
-          nombre,
-          telefono,
-          horario,
-          resumen,
-          // Extras de concesionaria: el template de email puede ignorarlos
-          // (inmobiliaria) o renderizarlos (concesionaria).
-          vehiculo_interes,
-          permuta,
-          financiacion_solicitada,
-        },
-      });
+    if (clienteInfo?.email_contacto) {
+      const isInitial = notifiedFields.size === 0;
+      // Campos de concesionaria que tienen valor y aún no fueron notificados
+      const newConcFields = CONC_FIELDS.filter(
+        (k) => session.leadData[k] != null && !notifiedFields.has(k)
+      );
+
+      if (isInitial || newConcFields.length > 0) {
+        if (isInitial) notifiedFields.add("_initial");
+        newConcFields.forEach((k) => notifiedFields.add(k));
+
+        await sendLeadNotification({
+          clienteNombre: clienteInfo.nombre,
+          clienteEmail: clienteInfo.email_contacto,
+          rubro: clienteInfo.rubro || "inmobiliaria",
+          lead: { nombre, telefono, horario, resumen, vehiculo_interes, permuta, financiacion_solicitada },
+        });
+      }
     }
   },
 

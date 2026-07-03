@@ -202,6 +202,16 @@
     .td-num { color: #A1A1AA; font-size: .8rem; font-variant-numeric: tabular-nums; }
     .td-nombre { font-weight: 500; }
     .td-resumen { font-size: .775rem; color: #A1A1AA; font-weight: 400; margin-top: 3px; line-height: 1.4; }
+    .conc-col { display: none; }
+    table.conc .conc-col { display: table-cell; }
+    .chip-conc {
+      display: inline-flex; align-items: center; gap: 3px;
+      background: #EFF6FF; color: #1D4ED8; border: 1px solid #BFDBFE;
+      border-radius: 4px; padding: 1px 7px; font-size: .72rem; font-weight: 500;
+      white-space: nowrap;
+    }
+    .chip-conc.no { background: #F4F4F5; color: #52525B; border-color: #E4E4E7; }
+    .chip-row { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 4px; }
     .badge-new {
       display: inline-block;
       background: #F4F4F5;
@@ -416,6 +426,16 @@
         <div class="s-value" id="stat-email">0</div>
         <div class="s-sub">email disponible</div>
       </div>
+      <div class="stat-card conc-col" id="stat-card-permuta">
+        <div class="s-label">Permuta</div>
+        <div class="s-value" id="stat-permuta">0</div>
+        <div class="s-sub">entregan usado</div>
+      </div>
+      <div class="stat-card conc-col" id="stat-card-financiacion">
+        <div class="s-label">Financiación</div>
+        <div class="s-value" id="stat-financiacion">0</div>
+        <div class="s-sub">necesitan cuotas</div>
+      </div>
       <div class="stat-card">
         <div class="s-label">Último</div>
         <div class="s-value" id="stat-last" style="font-size:1.1rem;padding-top:4px;">—</div>
@@ -432,12 +452,13 @@
         </button>
       </div>
 
-      <table>
+      <table id="leads-table">
         <thead>
           <tr>
             <th>#</th>
             <th>Nombre</th>
             <th>Teléfono</th>
+            <th class="conc-col">Vehículo de interés</th>
             <th>Email</th>
             <th>Horario de contacto</th>
             <th>Fecha</th>
@@ -477,6 +498,7 @@
 <script>
   const TOKEN_KEY = "ia_dashboard_token";
   let currentToken = null;
+  let clienteRubro = "inmobiliaria";
 
   function formatDate(iso) {
     const d = new Date(iso);
@@ -499,7 +521,7 @@
       const data = await res.json();
       currentToken = token;
       localStorage.setItem(TOKEN_KEY, token);
-      showDashboard(data.nombre, data.ciudad);
+      showDashboard(data.nombre, data.ciudad, data.rubro || "inmobiliaria");
       loadLeads();
     } catch {
       errorEl.style.display = "block";
@@ -514,12 +536,22 @@
     document.getElementById("token-input").value = "";
   }
 
-  function showDashboard(nombre, ciudad) {
+  function showDashboard(nombre, ciudad, rubro) {
+    clienteRubro = rubro || "inmobiliaria";
     document.getElementById("login-screen").style.display = "none";
     document.getElementById("dashboard-screen").style.display = "block";
     document.getElementById("cliente-nombre").textContent = nombre;
     document.getElementById("page-subtitle").textContent =
       `${ciudad} — contactos que dejaron sus datos en el chat.`;
+    // Activar columnas y stats de concesionaria
+    const table = document.getElementById("leads-table");
+    if (clienteRubro === "concesionaria") {
+      table.classList.add("conc");
+      document.querySelectorAll(".conc-col").forEach(el => el.style.display = "");
+    } else {
+      table.classList.remove("conc");
+      document.querySelectorAll(".conc-col").forEach(el => el.style.display = "none");
+    }
   }
 
   async function loadLeads() {
@@ -536,6 +568,8 @@
 
     document.getElementById("stat-total").textContent = leads.length;
     document.getElementById("stat-email").textContent = leads.filter(l => l.email).length;
+    document.getElementById("stat-permuta").textContent = leads.filter(l => l.permuta === true).length;
+    document.getElementById("stat-financiacion").textContent = leads.filter(l => l.financiacionSolicitada === true).length;
 
     if (leads.length > 0) {
       document.getElementById("stat-last").textContent =
@@ -550,9 +584,23 @@
     }
     emptyEl.style.display = "none";
 
+    const isConc = clienteRubro === "concesionaria";
+
     leads.forEach((lead, i) => {
       const tr = document.createElement("tr");
       const isNew = isRecent(lead.createdAt);
+
+      // Chips de permuta y financiación para concesionaria
+      let chipsHtml = "";
+      if (isConc) {
+        const chips = [];
+        if (lead.permuta !== null && lead.permuta !== undefined)
+          chips.push(`<span class="chip-conc${lead.permuta ? "" : " no"}">Permuta: ${lead.permuta ? "Sí" : "No"}</span>`);
+        if (lead.financiacionSolicitada !== null && lead.financiacionSolicitada !== undefined)
+          chips.push(`<span class="chip-conc${lead.financiacionSolicitada ? "" : " no"}">Cuotas: ${lead.financiacionSolicitada ? "Sí" : "No"}</span>`);
+        if (chips.length) chipsHtml = `<div class="chip-row">${chips.join("")}</div>`;
+      }
+
       tr.innerHTML = `
         <td class="td-num">${leads.length - i}</td>
         <td class="td-nombre">
@@ -561,8 +609,10 @@
             ${isNew ? '<span class="badge-new">Nuevo</span>' : ""}
           </div>
           ${lead.resumen ? `<div class="td-resumen">${escHtml(lead.resumen)}</div>` : ""}
+          ${chipsHtml}
         </td>
         <td>${escHtml(lead.telefono || "—")}</td>
+        <td class="conc-col">${lead.vehiculoInteres ? escHtml(lead.vehiculoInteres) : '<span class="muted">—</span>'}</td>
         <td>
           ${lead.email
             ? `<a class="link-email" href="mailto:${escHtml(lead.email)}" onclick="event.stopPropagation()">${escHtml(lead.email)}</a>`
@@ -710,7 +760,7 @@
         if (res.ok) {
           const data = await res.json();
           currentToken = saved;
-          showDashboard(data.nombre, data.ciudad);
+          showDashboard(data.nombre, data.ciudad, data.rubro || "inmobiliaria");
           loadLeads();
           return;
         }

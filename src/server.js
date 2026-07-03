@@ -90,7 +90,7 @@ app.get("/cliente", async (req, res) => {
   if (!token) return res.status(400).json({ error: "token requerido" });
   const cliente = await getCliente(token);
   if (!cliente) return res.status(404).json({ error: "token inválido" });
-  res.json({ nombre: cliente.nombre, ciudad: cliente.ciudad });
+  res.json({ nombre: cliente.nombre, ciudad: cliente.ciudad, rubro: cliente.rubro || "inmobiliaria" });
 });
 app.use("/admin", adminCors, adminRouter);
 app.use("/leads", adminCors, leadsRouter);
@@ -104,6 +104,8 @@ app.get("/cliente-config", widgetCors, async (req, res) => {
   res.json({
     color_primario:   cliente.color_primario   || "#18181B",
     color_secundario: cliente.color_secundario || "#2563EB",
+    nombre: cliente.nombre,
+    rubro:  cliente.rubro || "inmobiliaria",
   });
 });
 app.use((req, res) => {

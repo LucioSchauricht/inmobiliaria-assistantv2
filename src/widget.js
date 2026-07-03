@@ -11,15 +11,21 @@
     ? new URL(scriptTag.src).origin
     : "http://localhost:3000";
 
+  const SESSION_KEY = "ai-widget-session-" + token;
+  const SESSION_TTL = 2 * 60 * 60 * 1000; // 2 horas, igual al TTL del servidor
+
   let sessionId = null;
   let isOpen = false;
   let isTyping = false;
+  let clienteRubro = "inmobiliaria";
+  let clienteNombre = "Asistente Virtual";
 
   // ─── Íconos SVG ──────────────────────────────────────────────────────────────
   const ICON_CHAT = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`;
   const ICON_CLOSE = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
   const ICON_SEND = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2" fill="currentColor" stroke="none"/></svg>`;
   const ICON_HOME = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`;
+  const ICON_CAR = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17H3a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h2"/><path d="M19 17h2a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2"/><rect x="5" y="7" width="14" height="10" rx="2"/><circle cx="7.5" cy="17" r="1.5"/><circle cx="16.5" cy="17" r="1.5"/><path d="M5 11h14"/><path d="M9 7l1-3h4l1 3"/></svg>`;
 
   // ─── Estilos ──────────────────────────────────────────────────────────────────
   const styles = `
@@ -64,7 +70,7 @@
       display: flex; align-items: center; justify-content: center; flex-shrink: 0;
     }
     .ai-info { flex: 1; min-width: 0; }
-    .ai-name { font-weight: 600; font-size: 13.5px; color: #09090B; }
+    .ai-name { font-weight: 600; font-size: 13.5px; color: #09090B; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .ai-status {
       display: flex; align-items: center; gap: 5px;
       font-size: 11.5px; color: #71717A; margin-top: 1px;
@@ -149,19 +155,11 @@
       display: flex; align-items: center; justify-content: space-between;
       margin-bottom: 8px;
     }
-    .ai-lead-card-title {
-      font-weight: 700; font-size: 13px; color: #09090B;
-    }
-    .ai-lead-card-time {
-      font-size: 11px; color: #71717A;
-    }
-    .ai-lead-card-row {
-      display: flex; gap: 6px; margin-bottom: 4px; line-height: 1.4;
-    }
+    .ai-lead-card-title { font-weight: 700; font-size: 13px; color: #09090B; }
+    .ai-lead-card-time { font-size: 11px; color: #71717A; }
+    .ai-lead-card-row { display: flex; gap: 6px; margin-bottom: 4px; line-height: 1.4; }
     .ai-lead-card-row:last-child { margin-bottom: 0; }
-    .ai-lead-card-label {
-      color: #71717A; font-weight: 500; flex-shrink: 0; min-width: 62px;
-    }
+    .ai-lead-card-label { color: #71717A; font-weight: 500; flex-shrink: 0; min-width: 62px; }
     .ai-lead-card-value { color: #09090B; }
 
     @media (max-width: 420px) {
@@ -172,47 +170,65 @@
 
   // ─── HTML ─────────────────────────────────────────────────────────────────────
   const html = `
-    <div id="ai-widget-btn">${ICON_CHAT}</div>
-    <div id="ai-widget-box">
+    <button id="ai-widget-btn" aria-label="Abrir chat" aria-expanded="false">${ICON_CHAT}</button>
+    <div id="ai-widget-box" role="dialog" aria-modal="true" aria-label="Chat de asistente" style="display:none">
       <div id="ai-widget-header">
-        <div class="ai-avatar">${ICON_HOME}</div>
+        <div class="ai-avatar" id="ai-avatar" aria-hidden="true">${ICON_HOME}</div>
         <div class="ai-info">
-          <div class="ai-name">Asistente Virtual</div>
-          <div class="ai-status"><span class="ai-dot"></span>En línea</div>
+          <div class="ai-name" id="ai-client-name">Asistente Virtual</div>
+          <div class="ai-status"><span class="ai-dot" aria-hidden="true"></span><span>En línea</span></div>
         </div>
-        <button class="ai-close-btn">${ICON_CLOSE}</button>
+        <button class="ai-close-btn" aria-label="Cerrar chat">${ICON_CLOSE}</button>
       </div>
-      <div id="ai-widget-messages"></div>
+      <div id="ai-widget-messages" role="log" aria-live="polite" aria-atomic="false" aria-label="Conversación"></div>
       <div id="ai-widget-input">
-        <input type="text" placeholder="Escribí tu consulta..." />
-        <button id="ai-send-btn">${ICON_SEND}</button>
+        <label for="ai-text-input" class="sr-only">Escribí tu consulta</label>
+        <input type="text" id="ai-text-input" placeholder="Escribí tu consulta..." autocomplete="off" />
+        <button id="ai-send-btn" aria-label="Enviar mensaje">${ICON_SEND}</button>
       </div>
     </div>
+    <style>#ai-widget-box{display:none}.ai-widget-sr-only,.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
   `;
 
   // ─── Montar en el DOM ─────────────────────────────────────────────────────────
-  const style = document.createElement("style");
-  style.textContent = styles;
-  document.head.appendChild(style);
+  const styleEl = document.createElement("style");
+  styleEl.textContent = styles;
+  document.head.appendChild(styleEl);
 
   const container = document.createElement("div");
   container.style.cssText = "--wc-primary:#18181B;--wc-accent:#2563EB";
   container.innerHTML = html;
   document.body.appendChild(container);
 
-  // Cargar colores del cliente y aplicarlos
+  // Cargar config del cliente: colores + nombre + rubro
   fetch(`${SERVER_URL}/cliente-config?token=${encodeURIComponent(token)}`)
     .then((r) => r.json())
     .then((cfg) => {
       container.style.setProperty("--wc-primary", cfg.color_primario);
       container.style.setProperty("--wc-accent",  cfg.color_secundario);
+      if (cfg.nombre) {
+        clienteNombre = cfg.nombre;
+        document.getElementById("ai-client-name").textContent = cfg.nombre;
+      }
+      if (cfg.rubro) {
+        clienteRubro = cfg.rubro;
+        if (cfg.rubro === "concesionaria") {
+          document.getElementById("ai-avatar").innerHTML = ICON_CAR;
+        }
+      }
     })
     .catch(() => {});
+
+  // Restaurar sessionId desde localStorage si es reciente
+  try {
+    const stored = JSON.parse(localStorage.getItem(SESSION_KEY) || "{}");
+    if (stored.id && Date.now() - stored.ts < SESSION_TTL) sessionId = stored.id;
+  } catch {}
 
   const btn      = document.getElementById("ai-widget-btn");
   const box      = document.getElementById("ai-widget-box");
   const messages = document.getElementById("ai-widget-messages");
-  const input    = document.querySelector("#ai-widget-input input");
+  const input    = document.getElementById("ai-text-input");
   const sendBtn  = document.getElementById("ai-send-btn");
   const closeBtn = document.querySelector(".ai-close-btn");
 
@@ -221,6 +237,7 @@
     const res = await fetch(`${SERVER_URL}/session`, { method: "POST" });
     const data = await res.json();
     sessionId = data.sessionId;
+    try { localStorage.setItem(SESSION_KEY, JSON.stringify({ id: sessionId, ts: Date.now() })); } catch {}
   }
 
   function addMessage(text, role) {
@@ -242,10 +259,22 @@
       { label: "Nombre:",   value: lead.nombre              },
       { label: "Teléfono:", value: lead.telefono            },
       { label: "Horario:",  value: lead.horario || "No especificado" },
-      { label: "Interés:",  value: lead.resumen || "Consulta general" },
     ];
+    // Campos extra para concesionarias
+    if (clienteRubro === "concesionaria") {
+      if (lead.vehiculoInteres || lead.vehiculo_interes) {
+        rows.push({ label: "Vehículo:", value: lead.vehiculoInteres || lead.vehiculo_interes });
+      }
+      if (lead.permuta !== null && lead.permuta !== undefined) {
+        rows.push({ label: "Permuta:", value: lead.permuta ? "Sí" : "No" });
+      }
+      if (lead.financiacion_solicitada !== null && lead.financiacion_solicitada !== undefined) {
+        rows.push({ label: "Financiación:", value: lead.financiacion_solicitada ? "Sí" : "No" });
+      }
+    } else {
+      rows.push({ label: "Interés:", value: lead.resumen || "Consulta general" });
+    }
 
-    // Construir con DOM puro — sin innerHTML con datos del usuario (evita XSS)
     const cardBox = document.createElement("div");
     cardBox.className = "ai-lead-card";
 
@@ -269,7 +298,7 @@
       lbl.textContent = label;
       const val = document.createElement("span");
       val.className = "ai-lead-card-value";
-      val.textContent = value;  // textContent nunca ejecuta HTML
+      val.textContent = value;
       row.appendChild(lbl);
       row.appendChild(val);
       cardBox.appendChild(row);
@@ -286,6 +315,7 @@
     const div = document.createElement("div");
     div.className = "ai-msg bot";
     div.id = "ai-typing";
+    div.setAttribute("aria-hidden", "true");
     div.innerHTML = `<div class="ai-typing-bubble"><span class="ai-typing-dot"></span><span class="ai-typing-dot"></span><span class="ai-typing-dot"></span></div>`;
     messages.appendChild(div);
     messages.scrollTop = messages.scrollHeight;
@@ -313,13 +343,17 @@
       });
       const data = await res.json();
       hideTyping();
-      addMessage(data.message, "bot");
-      if (data.leadCaptured && data.leadData) {
-        addLeadCard(data.leadData);
+      if (!res.ok) {
+        addMessage(data.error || "Hubo un error, intentá de nuevo.", "bot");
+      } else {
+        addMessage(data.message, "bot");
+        if (data.leadCaptured && data.leadData) {
+          addLeadCard(data.leadData);
+        }
       }
     } catch {
       hideTyping();
-      addMessage("Hubo un error, intentá de nuevo.", "bot");
+      addMessage("No pude conectarme. Revisá tu conexión e intentá de nuevo.", "bot");
     }
 
     isTyping = false;
@@ -327,13 +361,23 @@
     input.focus();
   }
 
+  function getGreeting() {
+    if (clienteRubro === "concesionaria") {
+      return `¡Hola! Soy el asistente de ${clienteNombre}. ¿Estás buscando un auto 0km, un usado, o tenés alguna otra consulta?`;
+    }
+    return `¡Hola! Soy el asistente de ${clienteNombre}. ¿Buscás para alquilar, comprar o vender una propiedad?`;
+  }
+
   async function openChat() {
     if (!sessionId) await initSession();
     isOpen = true;
-    box.classList.add("open");
-    btn.innerHTML = ICON_CLOSE;
+    box.style.display = "flex";
+    // Pequeño delay para que el navegador procese el display antes de la transición
+    requestAnimationFrame(() => box.classList.add("open"));
+    btn.setAttribute("aria-expanded", "true");
+    btn.setAttribute("aria-label", "Cerrar chat");
     if (messages.children.length === 0) {
-      addMessage("Hola, ¿en qué puedo ayudarte?", "bot");
+      addMessage(getGreeting(), "bot");
     }
     input.focus();
   }
@@ -341,7 +385,13 @@
   function closeChat() {
     isOpen = false;
     box.classList.remove("open");
-    btn.innerHTML = ICON_CHAT;
+    btn.setAttribute("aria-expanded", "false");
+    btn.setAttribute("aria-label", "Abrir chat");
+    // Ocultar tras la transición para que el display:none no corte la animación
+    box.addEventListener("transitionend", () => {
+      if (!isOpen) box.style.display = "none";
+    }, { once: true });
+    btn.focus();
   }
 
   // ─── Eventos ──────────────────────────────────────────────────────────────────
@@ -349,4 +399,5 @@
   closeBtn.addEventListener("click", closeChat);
   sendBtn.addEventListener("click", sendMessage);
   input.addEventListener("keydown", (e) => { if (e.key === "Enter") sendMessage(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && isOpen) closeChat(); });
 })();
