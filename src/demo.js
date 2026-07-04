@@ -112,7 +112,7 @@ export async function demoHandler(req, res) {
   </main>
   <div class="hint">${copy.ctaWidget} 👉</div>
   <!-- Widget embebido: una sola línea, igual que en la web del cliente -->
-  <script src="/widget.js" data-token="${escapeHtml(token)}" defer></script>
+  <script src="/widget.js?token=${escapeHtml(token)}" defer></script>
 </body>
 </html>`);
 }
