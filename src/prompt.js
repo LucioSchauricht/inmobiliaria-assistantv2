@@ -83,7 +83,7 @@ Cuando el usuario mencione su nombre, teléfono o cualquier dato del lead, inclu
 - Los campos permuta y financiacion solo aceptan los valores "si" o "no". Si todavía no lo sabés, no incluyas el campo.
 - En vehiculo poné el vehículo que le interesó al usuario (aunque no esté en el stock actual).
 - El campo resumen SIEMPRE debe ser el ÚLTIMO del bracket. No pongas comas seguidas de palabra= dentro del resumen.
-- Esta línea es interna: el usuario nunca la ve, no la menciones ni la expliques.
+- Esta línea es interna: el usuario nunca la ve, no la menciones ni la expliques.`;
 }
 
 /**
