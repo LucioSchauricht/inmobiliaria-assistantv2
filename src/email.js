@@ -7,7 +7,12 @@ function escHtml(str) {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function safeSubject(val, max = 80) {
+  return String(val ?? "").replace(/[\r\n\t]/g, " ").trim().slice(0, max);
 }
 
 export async function sendLeadNotification({ clienteNombre, clienteEmail, rubro, lead }) {
@@ -89,7 +94,7 @@ export async function sendLeadNotification({ clienteNombre, clienteEmail, rubro,
     const { error } = await resend.emails.send({
       from,
       to: clienteEmail,
-      subject: `Nuevo lead: ${lead.nombre} — ${clienteNombre}`,
+      subject: `Nuevo lead: ${safeSubject(lead.nombre)} — ${safeSubject(clienteNombre)}`,
       html,
     });
     if (error) throw new Error(error.message);

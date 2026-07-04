@@ -47,8 +47,9 @@ export async function demoHandler(req, res) {
 
   const rubro = COPY[cliente.rubro] ? cliente.rubro : "inmobiliaria";
   const copy = COPY[rubro];
-  const primario = escapeHtml(cliente.color_primario || "#1a56db");
-  const secundario = escapeHtml(cliente.color_secundario || "#ffffff");
+  const COLOR_RE = /^#[0-9A-Fa-f]{3}(?:[0-9A-Fa-f]{3})?$/;
+  const primario = COLOR_RE.test(cliente.color_primario) ? cliente.color_primario : "#1a56db";
+  const secundario = COLOR_RE.test(cliente.color_secundario) ? cliente.color_secundario : "#ffffff";
   const items = copy
     .inventario(cliente)
     .map((item) => `<li>${escapeHtml(item)}</li>`)

@@ -5,6 +5,8 @@ import { getCliente } from "./clientes.js";
 
 const client = new Anthropic();
 
+const EMAIL_RE = /^[^\s@]{1,64}@[^\s@]{1,255}$/;
+
 // resumen siempre es el último campo del bracket — parsearlo aparte evita que
 // comas dentro del texto partan mal los otros campos.
 function extractLeadData(text) {
@@ -41,22 +43,35 @@ function toBool(value) {
   return null;
 }
 
+// Sanitiza un campo de texto: elimina CRLF y limita longitud
+function sanitizeField(val, max) {
+  return String(val ?? "").replace(/[\r\n\t]/g, " ").trim().slice(0, max);
+}
+
 function normalizeLeadData(raw) {
-  // Normalizar keys a minúsculas por si el modelo capitaliza alguna
   const lower = Object.fromEntries(
     Object.entries(raw).map(([k, v]) => [k.toLowerCase().trim(), v])
   );
-  const { vehiculo, permuta, financiacion, nombre, telefono, ...rest } = lower;
-  const data = { ...rest };
-  if (nombre) data.nombre = String(nombre).trim().slice(0, 80);
+  const { vehiculo, permuta, financiacion, nombre, telefono, email, resumen, horario, ...rest } = lower;
+  const data = {};
+
+  if (nombre) data.nombre = sanitizeField(nombre, 80);
   if (telefono) {
     const cleaned = String(telefono).replace(/[^\d+\-\s]/g, "").trim();
     if (cleaned.replace(/\D/g, "").length >= 7) data.telefono = cleaned.slice(0, 30);
   }
-  if (vehiculo !== undefined) data.vehiculo_interes = String(vehiculo).trim().slice(0, 120);
+  if (email) {
+    const e = sanitizeField(email, 254);
+    if (EMAIL_RE.test(e)) data.email = e;
+  }
+  if (horario) data.horario = sanitizeField(horario, 100);
+  if (resumen) data.resumen = sanitizeField(resumen, 500);
+  if (vehiculo !== undefined) data.vehiculo_interes = sanitizeField(vehiculo, 120);
   if (permuta !== undefined) data.permuta = toBool(permuta);
   if (financiacion !== undefined) data.financiacion_solicitada = toBool(financiacion);
-  return data;
+
+  // Descartar cualquier campo extra inesperado (rest)
+  return Object.keys(data).length ? data : null;
 }
 
 export async function chatHandler(req, res) {
@@ -67,7 +82,13 @@ export async function chatHandler(req, res) {
     return res.status(400).json({ error: "message es requerido" });
   if (message.length > 1000) return res.status(400).json({ error: "Mensaje demasiado largo" });
 
-  const clienteToken = token || "DEMO-TOKEN-001";
+  const clienteToken = typeof token === "string" ? token.trim() : "DEMO-TOKEN-001";
+
+  // Validar que el sessionId pertenece a este token (previene mezcla de sesiones)
+  if (!db.validateSession(sessionId, clienteToken)) {
+    return res.status(403).json({ error: "Sesión no válida para este token" });
+  }
+
   const cliente = await getCliente(clienteToken);
   if (!cliente) return res.status(404).json({ error: "Token no encontrado" });
 
@@ -93,7 +114,7 @@ export async function chatHandler(req, res) {
     db.addMessage(sessionId, "assistant", cleanText);
     res.json({ message: cleanText, leadCaptured: !!leadData, leadData: leadData || null });
   } catch (error) {
-    console.error("Error en chatHandler:", error);
+    console.error("Error en chatHandler:", error.message, error.status);
     const status = error?.status;
     if (status === 429 || status === 529) {
       return res.status(503).json({ error: "Servicio ocupado, intentá en unos segundos" });

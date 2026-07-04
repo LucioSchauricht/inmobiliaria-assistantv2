@@ -4,9 +4,14 @@ import { db } from "./db.js";
 
 export const leadsRouter = Router();
 
+function getToken(req) {
+  const auth = req.headers.authorization;
+  if (auth && auth.startsWith("Bearer ")) return auth.slice(7).trim();
+  return req.query.token || req.body?.token || null;
+}
 
 leadsRouter.get("/", async (req, res) => {
-  const { token } = req.query;
+  const token = getToken(req);
   if (!token) return res.status(400).json({ error: "token es requerido" });
   const leads = await db.getAllLeads(token);
   res.json({ total: leads.length, leads });
@@ -14,7 +19,8 @@ leadsRouter.get("/", async (req, res) => {
 
 leadsRouter.patch("/:id/contactado", async (req, res) => {
   const { id } = req.params;
-  const { token, contactado = true } = req.body;
+  const token = getToken(req);
+  const { contactado = true } = req.body;
   if (!token) return res.status(400).json({ error: "token es requerido" });
 
   const { data: lead, error: findError } = await supabase
@@ -32,12 +38,16 @@ leadsRouter.patch("/:id/contactado", async (req, res) => {
     .eq("id", id)
     .eq("token", token);
 
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) {
+    console.error("Error actualizando lead:", error.message);
+    return res.status(500).json({ error: "Error al procesar la solicitud" });
+  }
   res.json({ ok: true });
 });
 
 leadsRouter.get("/conversacion", async (req, res) => {
-  const { session_id, token } = req.query;
+  const token = getToken(req);
+  const { session_id } = req.query;
   if (!session_id || !token) {
     return res.status(400).json({ error: "session_id y token son requeridos" });
   }
@@ -59,6 +69,9 @@ leadsRouter.get("/conversacion", async (req, res) => {
     .eq("session_id", session_id)
     .order("created_at", { ascending: true });
 
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) {
+    console.error("Error cargando conversación:", error.message);
+    return res.status(500).json({ error: "Error al procesar la solicitud" });
+  }
   res.json({ mensajes: mensajes || [] });
 });

@@ -2,6 +2,8 @@ import { sendLeadNotification } from "./email.js";
 import { supabase } from "./supabase.js";
 
 const sessions = new Map();
+const sessionTokenMap = new Map(); // sessionId → token (binding)
+const MAX_SESSIONS = 10_000;
 
 // Campos de concesionaria que disparan re-notificación cuando aparecen después del primer email
 const CONC_FIELDS = ["vehiculo_interes", "permuta", "financiacion_solicitada"];
@@ -9,13 +11,34 @@ const CONC_FIELDS = ["vehiculo_interes", "permuta", "financiacion_solicitada"];
 setInterval(() => {
   const cutoff = Date.now() - 2 * 60 * 60 * 1000;
   for (const [id, session] of sessions) {
-    if (session.createdAt.getTime() < cutoff) sessions.delete(id);
+    if (session.createdAt.getTime() < cutoff) {
+      sessions.delete(id);
+      sessionTokenMap.delete(id);
+    }
   }
 }, 60 * 60 * 1000);
 
 export const db = {
+  // Vincula un sessionId al token que lo creó (llamado desde POST /session)
+  bindSession(sessionId, token) {
+    sessionTokenMap.set(sessionId, token);
+  },
+
+  // Valida que el sessionId pertenece al token. Si no hay binding, permite (compatibilidad).
+  validateSession(sessionId, token) {
+    const bound = sessionTokenMap.get(sessionId);
+    if (!bound) return true;
+    return bound === token;
+  },
+
   getSession(sessionId) {
     if (!sessions.has(sessionId)) {
+      // Evitar memory exhaustion: eliminar la sesión más antigua si se supera el límite
+      if (sessions.size >= MAX_SESSIONS) {
+        const oldest = sessions.keys().next().value;
+        sessions.delete(oldest);
+        sessionTokenMap.delete(oldest);
+      }
       sessions.set(sessionId, {
         messages: [],
         leadData: {
@@ -27,7 +50,6 @@ export const db = {
           vehiculo_interes: null,
           permuta: null,
           financiacion_solicitada: null,
-          // Set de campos ya notificados; vacío = nunca se envió email
           notifiedFields: new Set(),
         },
         createdAt: new Date(),
@@ -56,7 +78,6 @@ export const db = {
 
     for (const [key, value] of Object.entries(data)) {
       if (value === null || value === undefined || value === "") continue;
-      // No pisar un resumen más largo con uno más corto
       if (key === "resumen") {
         const existing = session.leadData.resumen;
         if (!existing || String(value).length > String(existing).length) {
@@ -75,7 +96,7 @@ export const db = {
 
     if (!nombre || !telefono) return;
 
-    await supabase.from("leads").upsert(
+    const { error: upsertError } = await supabase.from("leads").upsert(
       {
         session_id: sessionId,
         token,
@@ -92,10 +113,10 @@ export const db = {
       },
       { onConflict: "session_id" }
     );
+    if (upsertError) console.error("Error guardando lead:", upsertError.message);
 
     if (clienteInfo?.email_contacto) {
       const isInitial = notifiedFields.size === 0;
-      // Campos de concesionaria que tienen valor y aún no fueron notificados
       const newConcFields = CONC_FIELDS.filter(
         (k) => session.leadData[k] != null && !notifiedFields.has(k)
       );
@@ -121,7 +142,10 @@ export const db = {
       .select("*")
       .eq("token", token)
       .order("created_at", { ascending: false });
-    if (error) return [];
+    if (error) {
+      console.error("Error obteniendo leads:", error.message);
+      return [];
+    }
     return data.map((row) => ({
       id: row.id,
       sessionId: row.session_id,

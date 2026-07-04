@@ -520,7 +520,7 @@
       if (!res.ok) throw new Error();
       const data = await res.json();
       currentToken = token;
-      localStorage.setItem(TOKEN_KEY, token);
+      localStorage.setItem(TOKEN_KEY, JSON.stringify({ t: token, exp: Date.now() + 8 * 60 * 60 * 1000 }));
       showDashboard(data.nombre, data.ciudad, data.rubro || "inmobiliaria");
       loadLeads();
     } catch {
@@ -556,7 +556,9 @@
 
   async function loadLeads() {
     try {
-      const res = await fetch(`/leads?token=${encodeURIComponent(currentToken)}`);
+      const res = await fetch("/leads", {
+        headers: { "Authorization": `Bearer ${currentToken}` },
+      });
       const data = await res.json();
       renderLeads(data.leads);
     } catch {}
@@ -653,7 +655,8 @@
   function escHtml(str) {
     return String(str)
       .replace(/&/g, "&amp;").replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+      .replace(/>/g, "&gt;").replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
   }
 
   async function marcarContactado(leadId, btn, btnUndo) {
@@ -708,7 +711,8 @@
 
     try {
       const res = await fetch(
-        `/leads/conversacion?session_id=${encodeURIComponent(lead.sessionId)}&token=${encodeURIComponent(currentToken)}`
+        `/leads/conversacion?session_id=${encodeURIComponent(lead.sessionId)}`,
+        { headers: { "Authorization": `Bearer ${currentToken}` } }
       );
       const data = await res.json();
       const mensajes = data.mensajes || [];
@@ -753,20 +757,24 @@
   });
 
   (async () => {
-    const saved = localStorage.getItem(TOKEN_KEY);
-    if (saved) {
-      try {
-        const res = await fetch(`/cliente?token=${encodeURIComponent(saved)}`);
-        if (res.ok) {
-          const data = await res.json();
-          currentToken = saved;
-          showDashboard(data.nombre, data.ciudad, data.rubro || "inmobiliaria");
-          loadLeads();
-          return;
-        }
-      } catch {}
-      localStorage.removeItem(TOKEN_KEY);
-    }
+    try {
+      const raw = localStorage.getItem(TOKEN_KEY);
+      if (!raw) return;
+      const stored = JSON.parse(raw);
+      if (!stored?.t || !stored?.exp || stored.exp < Date.now()) {
+        localStorage.removeItem(TOKEN_KEY);
+        return;
+      }
+      const res = await fetch(`/cliente?token=${encodeURIComponent(stored.t)}`);
+      if (res.ok) {
+        const data = await res.json();
+        currentToken = stored.t;
+        showDashboard(data.nombre, data.ciudad, data.rubro || "inmobiliaria");
+        loadLeads();
+        return;
+      }
+    } catch {}
+    localStorage.removeItem(TOKEN_KEY);
   })();
 </script>
 </body>

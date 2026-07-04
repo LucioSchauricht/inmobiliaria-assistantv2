@@ -234,7 +234,11 @@
 
   // ─── Funciones ────────────────────────────────────────────────────────────────
   async function initSession() {
-    const res = await fetch(`${SERVER_URL}/session`, { method: "POST" });
+    const res = await fetch(`${SERVER_URL}/session`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token }),
+    });
     const data = await res.json();
     sessionId = data.sessionId;
     try { localStorage.setItem(SESSION_KEY, JSON.stringify({ id: sessionId, ts: Date.now() })); } catch {}
