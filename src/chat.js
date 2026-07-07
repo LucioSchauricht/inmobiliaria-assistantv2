@@ -1,14 +1,13 @@
+```javascript
 import Anthropic from "@anthropic-ai/sdk";
 import { db } from "./db.js";
 import { buildSystemPrompt } from "./prompt.js";
 import { getCliente } from "./clientes.js";
 
 const client = new Anthropic();
-
 const EMAIL_RE = /^[^\s@]{1,64}@[^\s@]{1,255}$/;
+const sessionLeadCaptured = new Map();
 
-// resumen siempre es el último campo del bracket — parsearlo aparte evita que
-// comas dentro del texto partan mal los otros campos.
 function extractLeadData(text) {
   const match = text.match(/\[LEAD:([^\]]+)\]/);
   if (!match) return null;
@@ -43,7 +42,6 @@ function toBool(value) {
   return null;
 }
 
-// Sanitiza un campo de texto: elimina CRLF y limita longitud
 function sanitizeField(val, max) {
   return String(val ?? "").replace(/[\r\n\t]/g, " ").trim().slice(0, max);
 }
@@ -54,7 +52,6 @@ function normalizeLeadData(raw) {
   );
   const { vehiculo, permuta, financiacion, nombre, telefono, email, resumen, horario, ...rest } = lower;
   const data = {};
-
   if (nombre) data.nombre = sanitizeField(nombre, 80);
   if (telefono) {
     const cleaned = String(telefono).replace(/[^\d+\-\s]/g, "").trim();
@@ -69,8 +66,6 @@ function normalizeLeadData(raw) {
   if (vehiculo !== undefined) data.vehiculo_interes = sanitizeField(vehiculo, 120);
   if (permuta !== undefined) data.permuta = toBool(permuta);
   if (financiacion !== undefined) data.financiacion_solicitada = toBool(financiacion);
-
-  // Descartar cualquier campo extra inesperado (rest)
   return Object.keys(data).length ? data : null;
 }
 
@@ -84,7 +79,6 @@ export async function chatHandler(req, res) {
 
   const clienteToken = typeof token === "string" ? token.trim() : "DEMO-TOKEN-001";
 
-  // Validar que el sessionId pertenece a este token (previene mezcla de sesiones)
   if (!db.validateSession(sessionId, clienteToken)) {
     return res.status(403).json({ error: "Sesión no válida para este token" });
   }
@@ -94,22 +88,28 @@ export async function chatHandler(req, res) {
 
   try {
     db.addMessage(sessionId, "user", message);
+
     const response = await client.messages.create({
       model: process.env.CLAUDE_MODEL || "claude-sonnet-4-6",
       max_tokens: 500,
       system: [{ type: "text", text: buildSystemPrompt(cliente), cache_control: { type: "ephemeral" } }],
       messages: db.getMessages(sessionId),
     });
+
     const rawText = response.content[0]?.text || "";
     const rawLead = extractLeadData(rawText);
-    const leadData = rawLead ? normalizeLeadData(rawLead) : null;
+    const alreadyCaptured = sessionLeadCaptured.get(sessionId) || false;
+    const leadData = rawLead && !alreadyCaptured ? normalizeLeadData(rawLead) : null;
+
     if (leadData) {
       await db.updateLead(sessionId, leadData, clienteToken, {
         nombre: cliente.nombre,
         email_contacto: cliente.email_contacto,
         rubro: cliente.rubro || "inmobiliaria",
       });
+      sessionLeadCaptured.set(sessionId, true);
     }
+
     const cleanText = cleanMessage(rawText);
     db.addMessage(sessionId, "assistant", cleanText);
     res.json({ message: cleanText, leadCaptured: !!leadData, leadData: leadData || null });
@@ -122,3 +122,4 @@ export async function chatHandler(req, res) {
     res.status(500).json({ error: "Error procesando el mensaje" });
   }
 }
+```
