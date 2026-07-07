@@ -366,6 +366,9 @@
   }
 
   function getGreeting() {
+    if (clienteRubro === "vivicarmelo") {
+      return `¡Hola! Soy el asistente de ${clienteNombre}. ¿Buscás alojamiento en Carmelo o querés sumar tu propiedad?`;
+    }
     if (clienteRubro === "concesionaria") {
       return `¡Hola! Soy el asistente de ${clienteNombre}. ¿Estás buscando un auto 0km, un usado, o tenés alguna otra consulta?`;
     }
