@@ -1,4 +1,3 @@
-```javascript
 import Anthropic from "@anthropic-ai/sdk";
 import { db } from "./db.js";
 import { buildSystemPrompt } from "./prompt.js";
@@ -122,4 +121,3 @@ export async function chatHandler(req, res) {
     res.status(500).json({ error: "Error procesando el mensaje" });
   }
 }
-```
