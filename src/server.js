@@ -105,6 +105,11 @@ app.use((req, res, next) => {
   next();
 });
 
+// Preflight OPTIONS para rutas del widget
+app.options('/session', widgetCors);
+app.options('/chat', widgetCors);
+app.options('/cliente-config', widgetCors);
+
 // ── Rutas públicas ────────────────────────────────────────────
 app.get("/", (req, res) => {
   res.json({ status: "ok", service: "Asistente IA Inmobiliaria" });
